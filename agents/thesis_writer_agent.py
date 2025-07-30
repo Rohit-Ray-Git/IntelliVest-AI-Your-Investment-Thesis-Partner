@@ -1,58 +1,51 @@
 # agents/thesis_writer_agent.py
 
-import os
 import asyncio
-from dotenv import load_dotenv
-import google.generativeai as genai
-from utils.llm import call_groq_deepseek
-
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-if not GOOGLE_API_KEY:
-    raise EnvironmentError("Missing GOOGLE_API_KEY in .env")
-
-genai.configure(api_key=GOOGLE_API_KEY)
+from utils.ai_client import ai_client
 
 class ThesisWriterAgent:
     def __init__(self):
-        self.model = genai.GenerativeModel("gemini-2.5-flash")
+        pass
 
     async def generate_thesis(self, content: str, sentiment: str, valuation: str, company_name: str) -> str:
+        """Generate investment thesis based on content, sentiment, and valuation"""
+        
         prompt = f"""
-You are a professional investment analyst. Based on the following financial article markdown and insights,
-generate a detailed and professional investment thesis.
-
-Include:
-1. **Summary of the Company and Market Tone**
-2. **Sentiment Stance and Justification**
-3. **Valuation Status with Key Metrics**
-4. **Final Investment Recommendation** — Buy, Hold, Sell
-5. **Mention whether it is a good time to invest, or not — and when would be better with reasoning.**
-
-Company Name: {company_name}
-
---- Article Content ---
-{content}
-
---- Sentiment Analysis ---
-{sentiment}
-
---- Valuation Insight ---
-{valuation}
-
-Respond in markdown format.
-"""
-
+        Generate a comprehensive investment thesis for {company_name} based on the following information:
+        
+        **Company Content Analysis:**
+        {content[:6000]}
+        
+        **Sentiment Analysis:**
+        {sentiment}
+        
+        **Valuation Analysis:**
+        {valuation}
+        
+        Create a professional investment thesis that includes:
+        1. Executive Summary
+        2. Company Overview
+        3. Investment Thesis (Bull/Bear case)
+        4. Key Investment Drivers
+        5. Risk Factors
+        6. Valuation Summary
+        7. Investment Recommendation
+        
+        Format your response in clear markdown with proper headings and structure.
+        Be objective and data-driven in your analysis.
+        """
+        
+        messages = [
+            {"role": "system", "content": "You are a senior investment analyst with expertise in equity research and investment thesis development."},
+            {"role": "user", "content": prompt}
+        ]
+        
         try:
-            response = await self.model.generate_content_async(prompt)
-            return response.text
+            result = await ai_client.get_completion(messages, max_tokens=3000)
+            return result
         except Exception as e:
-            print(f"[Gemini Error] {e}")
-            print("[Fallback] Using Groq DeepSeek instead...")
-            try:
-                return call_groq_deepseek(prompt)
-            except Exception as fallback_error:
-                return f"❌ Failed to generate thesis: {fallback_error}"
+            print(f"❌ Thesis generation failed: {e}")
+            return "Investment thesis could not be generated due to technical issues. Please try again later."
 
 
 # ✅ Quick test

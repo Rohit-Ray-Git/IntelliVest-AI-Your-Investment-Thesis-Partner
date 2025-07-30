@@ -1,57 +1,43 @@
-# critic_agent.py
+# agents/critic_agent.py
 
-import sys
-import os
 import asyncio
-from dotenv import load_dotenv
-
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import google.generativeai as genai
-from utils.llm import call_groq_deepseek
-
-# Load environment variables
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-# Configure Gemini
-if not GOOGLE_API_KEY:
-    raise EnvironmentError("GOOGLE_API_KEY not found in .env or environment variables")
-
-genai.configure(api_key=GOOGLE_API_KEY)
+from utils.ai_client import ai_client
 
 class CriticAgent:
     def __init__(self):
-        self.model = genai.GenerativeModel("gemini-2.5-flash")
+        pass
 
     async def critique_thesis(self, thesis_markdown: str, company_name: str) -> str:
+        """Critique the investment thesis for potential biases and gaps"""
+        
         prompt = f"""
-You are a professional investment analyst and critical reviewer.
-
-Your job is to critique the following investment thesis on **{company_name}**.
-
-Do the following:
-1. Check for any biases or over-optimistic claims.
-2. Identify missing information, key risks, or contradictions.
-3. Suggest improvements in reasoning, supporting data, or structure.
-4. If there are inconsistencies between valuation numbers and dates, highlight them.
-5. Output your critique in **markdown format**.
-
---- Investment Thesis ---
-{thesis_markdown}
-"""
-
+        Critically analyze the following investment thesis for {company_name} and identify potential issues, biases, or gaps in the analysis.
+        
+        **Investment Thesis:**
+        {thesis_markdown}
+        
+        Provide a constructive critique that includes:
+        1. Potential biases in the analysis
+        2. Missing information or data gaps
+        3. Alternative viewpoints or counter-arguments
+        4. Assumptions that may be questionable
+        5. Areas where the analysis could be strengthened
+        6. Risk factors that may have been overlooked
+        
+        Be objective and constructive in your critique. Focus on improving the quality and robustness of the investment thesis.
+        """
+        
+        messages = [
+            {"role": "system", "content": "You are a senior investment analyst specializing in critical analysis and risk assessment of investment theses."},
+            {"role": "user", "content": prompt}
+        ]
+        
         try:
-            response = await self.model.generate_content_async(prompt)
-            return response.text
+            result = await ai_client.get_completion(messages, max_tokens=2000)
+            return result
         except Exception as e:
-            print(f"[Gemini Error] {e}")
-            print("[Fallback] Using Groq DeepSeek instead...")
-            try:
-                return call_groq_deepseek(prompt)
-            except Exception as fallback_error:
-                return f"❌ Critique Failed: {fallback_error}"
+            print(f"❌ Thesis critique failed: {e}")
+            return "Thesis critique could not be completed due to technical issues. Please try again later."
 
 
 # ✅ Standalone test

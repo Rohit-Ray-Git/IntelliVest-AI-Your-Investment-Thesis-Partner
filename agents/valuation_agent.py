@@ -1,59 +1,42 @@
-# valuation_agent.py
+# agents/valuation_agent.py
 
-import sys
-import os
 import asyncio
-from dotenv import load_dotenv
-
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import google.generativeai as genai
-from utils.llm import call_groq_deepseek  # async function
-
-# Load environment variables
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-if not GOOGLE_API_KEY:
-    raise EnvironmentError("GOOGLE_API_KEY not found in .env or environment variables")
-
-# Configure Gemini
-genai.configure(api_key=GOOGLE_API_KEY)
-
+from utils.ai_client import ai_client
 
 class ValuationAgent:
     def __init__(self):
-        self.model = genai.GenerativeModel("gemini-2.5-flash")
+        pass
 
-    async def estimate_valuation(self, markdown: str) -> str:
+    async def estimate_valuation(self, content: str) -> str:
+        """Estimate company valuation based on content"""
+        
         prompt = f"""
-You are a financial valuation expert.
-
-Based on the following markdown financial article, estimate the company's valuation insights.
-
-Include:
-- Whether it is undervalued, fairly valued, or overvalued
-- Mention of valuation ratios (P/E, PEG, DCF, etc.)
-- Price estimate if applicable
-- Justification for your reasoning
-
-Respond in **markdown** format.
-
---- Article ---
-{markdown}
-"""
+        Analyze the following content and provide a comprehensive valuation assessment for the company.
+        Focus on financial metrics, market position, growth prospects, and industry trends.
+        
+        Content: {content[:8000]}  # Limit content length to avoid token limits
+        
+        Provide a valuation analysis with:
+        1. Key financial metrics mentioned
+        2. Market position and competitive advantages
+        3. Growth prospects and risks
+        4. Valuation methodology considerations
+        5. Key factors affecting valuation
+        
+        Format your response as a structured analysis with clear sections.
+        """
+        
+        messages = [
+            {"role": "system", "content": "You are a financial analyst specializing in company valuation and financial analysis."},
+            {"role": "user", "content": prompt}
+        ]
+        
         try:
-            # Gemini is synchronous — DO NOT await
-            response = self.model.generate_content(prompt)
-            return response.text
+            result = await ai_client.get_completion(messages, max_tokens=2000)
+            return result
         except Exception as e:
-            print(f"[Gemini Error] {e}")
-            print("[Fallback] Using Groq DeepSeek instead...")
-            try:
-                return await call_groq_deepseek(prompt)  # ✅ await correctly
-            except Exception as fallback_error:
-                return f"❌ Valuation Failed: {fallback_error}"
+            print(f"❌ Valuation analysis failed: {e}")
+            return "Valuation analysis could not be completed due to technical issues. Please try again later."
 
 
 # ------------------- TEST -------------------
