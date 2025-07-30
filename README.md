@@ -54,8 +54,8 @@ IntelliVest AI is an intelligent investment research platform that leverages mul
 - **Async Processing**: Non-blocking I/O operations throughout
 
 ### Core AI & LLM
-- **Primary LLM**: Google Gemini models (1.5-flash, 1.5-pro, 2.0-flash-exp)
-- **Fallback LLM**: Groq models (llama3.1-70b, llama3.1-8b, gemma2-9b, mixtral-8x7b)
+- **Primary LLM**: Google Gemini models (2.5-flash, 1.5-flash, 1.5-pro, 2.0-flash-exp)
+- **Fallback LLM**: Groq models (deepseek-r1-distill-llama-70b, llama3.1-70b, llama3.1-8b, gemma2-9b, mixtral-8x7b)
 - **AI Client**: RobustAIClient with automatic fallback and retry logic
 - **Agent Framework**: Custom async agent architecture
 
