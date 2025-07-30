@@ -1,21 +1,15 @@
-# thesis_writer_agent.py
-import sys
+# agents/thesis_writer_agent.py
+
 import os
 import asyncio
 from dotenv import load_dotenv
 import google.generativeai as genai
-
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from utils.llm import call_groq_deepseek
 
-# Load environment variables
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
 if not GOOGLE_API_KEY:
-    raise EnvironmentError("GOOGLE_API_KEY not found in .env")
+    raise EnvironmentError("Missing GOOGLE_API_KEY in .env")
 
 genai.configure(api_key=GOOGLE_API_KEY)
 
@@ -23,66 +17,57 @@ class ThesisWriterAgent:
     def __init__(self):
         self.model = genai.GenerativeModel("gemini-2.5-flash")
 
-    async def generate_thesis(self, markdown: str, sentiment: str, valuation: str) -> str:
+    async def generate_thesis(self, content: str, sentiment: str, valuation: str, company_name: str) -> str:
         prompt = f"""
-You are a professional investment analyst.
+You are a professional investment analyst. Based on the following financial article markdown and insights,
+generate a detailed and professional investment thesis.
 
-Given the following inputs:
-- Financial article (in markdown)
-- Sentiment analysis result
-- Valuation summary
+Include:
+1. **Summary of the Company and Market Tone**
+2. **Sentiment Stance and Justification**
+3. **Valuation Status with Key Metrics**
+4. **Final Investment Recommendation** — Buy, Hold, Sell
+5. **Mention whether it is a good time to invest, or not — and when would be better with reasoning.**
 
-Write a concise yet professional **Investment Thesis** including:
-1. Summary of the company and market tone
-2. Sentiment stance and rationale
-3. Valuation status with key metrics
-4. Final investment recommendation (Buy/Hold/Sell) with reason
+Company Name: {company_name}
 
-Use markdown formatting.
+--- Article Content ---
+{content}
 
-### Article:
-{markdown}
-
-### Sentiment:
+--- Sentiment Analysis ---
 {sentiment}
 
-### Valuation Insight:
+--- Valuation Insight ---
 {valuation}
+
+Respond in markdown format.
 """
 
         try:
-            response = self.model.generate_content(prompt)
+            response = await self.model.generate_content_async(prompt)
             return response.text
         except Exception as e:
             print(f"[Gemini Error] {e}")
-            print("[Fallback] Using Groq DeepSeek...")
+            print("[Fallback] Using Groq DeepSeek instead...")
             try:
-                return await call_groq_deepseek(prompt)
+                return call_groq_deepseek(prompt)
             except Exception as fallback_error:
-                return f"❌ Thesis Generation Failed: {fallback_error}"
+                return f"❌ Failed to generate thesis: {fallback_error}"
 
 
-# ------------------- TEST -------------------
-
+# ✅ Quick test
 if __name__ == "__main__":
-    dummy_md = """
-Example Inc. reported Q2 earnings with revenue of $1.2B, up 18% YoY.
-Earnings per share beat expectations, and cloud revenue led the growth.
-Debt levels remain low and the company is expanding into new markets.
-"""
-    dummy_sentiment = "**Sentiment:** Positive\n\n**Justification:** Strong earnings and growth."
-    dummy_valuation = """
-**Valuation:** Undervalued  
-**P/E Ratio:** 15.5 (vs Industry 18)  
-**Debt:** Low  
-**Growth:** Stable  
-Analyst consensus indicates upside.
-"""
-
-    agent = ThesisWriterAgent()
-
     async def test():
-        result = await agent.generate_thesis(dummy_md, dummy_sentiment, dummy_valuation)
-        print("\n🧾 [Generated Investment Thesis]\n", result)
+        dummy_content = "Nvidia reported record earnings driven by strong demand for its GPUs across AI and data centers."
+        dummy_sentiment = "**Sentiment:** Positive\nNvidia's performance exceeded expectations with record-breaking growth in the AI sector."
+        dummy_valuation = "**Valuation:** Fairly Valued\nNvidia's P/E is high, but justified by its aggressive growth and dominant AI positioning."
+        agent = ThesisWriterAgent()
+        thesis = await agent.generate_thesis(
+            content=dummy_content,
+            sentiment=dummy_sentiment,
+            valuation=dummy_valuation,
+            company_name="Nvidia"
+        )
+        print(thesis)
 
     asyncio.run(test())
