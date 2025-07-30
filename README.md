@@ -1,66 +1,63 @@
 # 🚀 IntelliVest AI - Your Investment Thesis Partner
 
-> **AI-Powered Investment Research & Thesis Builder** - A multi-agent tool that gathers real-time financial data, performs analysis, and generates professional investment theses.
+> **AI-Powered Investment Research & Thesis Builder** - A multi-agent system that analyzes financial news, performs sentiment analysis, and generates professional investment thesis with critique and revision capabilities.
 
 ## 📊 Project Overview
 
-IntelliVest AI is a comprehensive investment research platform that combines web crawling, financial data analysis, and AI-powered insights to generate professional investment theses. The system uses multiple specialized agents to gather, analyze, and synthesize information from various sources.
+IntelliVest AI is an intelligent investment research platform that leverages multiple AI agents to gather, analyze, and synthesize financial information into comprehensive investment theses. The system uses advanced web crawling, sentiment analysis, valuation assessment, and AI-powered critique to deliver professional-grade investment insights.
 
-## ✨ Features
+## ✨ Key Features
 
-### 🤖 Multi-Agent Architecture
-- **🕷️ Crawler Agent**: Crawls financial websites, news, and blogs
-- **📊 Data Agent**: Fetches live financial ratios and stock data
-- **💬 Sentiment Agent**: Analyzes news sentiment and market mood
-- **💰 Valuation Agent**: Computes financial metrics and comparisons
-- **🧾 Thesis Builder Agent**: Generates comprehensive investment theses
-- **🧐 Critic Agent**: Reviews bias and highlights risks
+### 🤖 Multi-Agent Pipeline
+- **🔍 News Search Agent**: Uses Tavily API to find recent financial news articles
+- **🕷️ Crawler Agent**: Extracts content from financial websites using Crawl4AI
+- **🧠 Sentiment Agent**: Analyzes market sentiment using Google Gemini AI
+- **💰 Valuation Agent**: Assesses company valuation and financial metrics
+- **📄 Thesis Writer Agent**: Generates comprehensive investment theses
+- **🧐 Critic Agent**: Reviews and critiques theses for biases and gaps
+- **🛠️ Thesis Rewrite Agent**: Revises theses based on critique feedback
 
-### 🔍 Data Sources
-- **Real-time Financial Data**: yfinance, Alpha Vantage, FMP API
-- **News & Articles**: Web crawling with Crawl4AI
-- **Market Sentiment**: NLP analysis of financial news
-- **Peer Comparisons**: Industry benchmarking
+### 🔍 Data Sources & Analysis
+- **Real-time News**: Financial news from CNBC, Reuters, Bloomberg, and company investor sites
+- **Content Extraction**: Advanced web crawling with markdown conversion
+- **Sentiment Analysis**: AI-powered sentiment classification (Positive/Negative/Neutral)
+- **Valuation Insights**: P/E ratios, PEG ratios, DCF analysis, and market positioning
+- **Risk Assessment**: Comprehensive bias detection and risk factor identification
 
-### 📈 Analysis Capabilities
-- **SWOT Analysis**: Strengths, Weaknesses, Opportunities, Threats
-- **Financial Metrics**: P/E, PEG, YoY growth, market cap analysis
-- **Risk Assessment**: Comprehensive risk factor identification
-- **Valuation Models**: Multiple valuation approaches
-- **Industry Comparison**: Peer and sector analysis
-
-### 🎨 User Interface
-- **Streamlit Web App**: Modern, interactive interface
-- **Real-time Updates**: Live data and analysis
-- **Export Options**: PDF reports and data exports
-- **Report History**: Save and revisit past analyses
+### 📈 Output Capabilities
+- **Investment Thesis**: Professional-grade investment recommendations
+- **Sentiment Analysis**: Market mood and sentiment justification
+- **Valuation Assessment**: Financial metrics and valuation status
+- **Critique Report**: Bias detection and improvement suggestions
+- **Revised Thesis**: Enhanced thesis incorporating feedback
 
 ## 🛠️ Technology Stack
 
-### Core Frameworks
-- **Agent Framework**: CrewAI, LangChain, LangGraph
-- **LLM Integration**: OpenAI GPT, Google Gemini, LiteLLM
-- **Web Crawling**: Crawl4AI, Playwright, BeautifulSoup
-- **Financial Data**: yfinance, pandas, numpy
+### Core AI & LLM
+- **Primary LLM**: Google Gemini 2.5 Flash (via `google-generativeai`)
+- **Fallback LLM**: Groq DeepSeek (via OpenAI-compatible API)
+- **Agent Framework**: Custom async agent architecture
 
-### UI & Deployment
-- **Web Interface**: Streamlit
-- **Data Visualization**: Altair, Plotly
-- **Report Generation**: PDFKit, Markdown
-- **Vector Database**: FAISS, ChromaDB
+### Web Crawling & Data
+- **Web Crawler**: Crawl4AI with Playwright backend
+- **News Search**: Tavily API for financial news discovery
+- **Content Processing**: Markdown extraction and formatting
 
-### Development Tools
+### Development & Deployment
 - **Language**: Python 3.10+
-- **Package Management**: pip, requirements.txt
-- **Version Control**: Git
-- **Environment**: Virtual environments
+- **Async Framework**: asyncio for concurrent processing
+- **Environment Management**: python-dotenv
+- **Package Management**: pip with comprehensive requirements.txt
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.10 or higher
 - Git
-- API keys for LLM services (OpenAI, Google AI)
+- API keys for:
+  - Google AI (Gemini) - Primary LLM
+  - Groq API - Fallback LLM
+  - Tavily API - News search
 
 ### Installation
 
@@ -70,10 +67,13 @@ IntelliVest AI is a comprehensive investment research platform that combines web
    cd IntelliVest-AI-Your-Investment-Thesis-Partner
    ```
 
-2. **Create virtual environment**
+2. **Create and activate virtual environment**
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
    ```
 
 3. **Install dependencies**
@@ -81,136 +81,173 @@ IntelliVest AI is a comprehensive investment research platform that combines web
    pip install -r requirements.txt
    ```
 
-4. **Install Playwright browsers**
+4. **Install Playwright browsers (for web crawling)**
    ```bash
    playwright install
    ```
 
 5. **Configure environment variables**
    ```bash
-   # Copy and edit the .env file
-   cp .env.example .env
-   # Add your API keys to .env
+   # Create .env file with your API keys
+   echo "GOOGLE_API_KEY=your_gemini_api_key_here" > .env
+   echo "GROQ_API_KEY=your_groq_api_key_here" >> .env
+   echo "TAVILY_API_KEY=your_tavily_api_key_here" >> .env
    ```
 
 6. **Run the application**
    ```bash
-   streamlit run app/streamlit_ui.py
+   python main.py
    ```
 
-## 📁 Project Structure
+## 📋 Usage
+
+### Command Line Interface
+```bash
+python main.py
+```
+
+The application will prompt you to enter a company or stock name, then automatically:
+
+1. **Search** for recent financial news about the company
+2. **Crawl** and extract content from relevant articles
+3. **Analyze** sentiment and market mood
+4. **Assess** valuation and financial metrics
+5. **Generate** a comprehensive investment thesis
+6. **Critique** the thesis for biases and improvements
+7. **Revise** the thesis based on feedback
+
+### Example Output
+```
+🚀 IntelliVest AI — Investment Thesis Generator
+
+📌 Enter company or stock name to research: NVIDIA
+
+🔍 Searching news for: NVIDIA
+🌐 Crawling and extracting articles...
+🧠 Running Sentiment Analysis...
+💸 Running Valuation...
+📄 Generating Investment Thesis...
+🧐 Running Thesis Critique...
+🛠 Rewriting Thesis Based on Critique...
+
+✅ Pipeline Complete.
+
+--- Investment Thesis ---
+[Professional investment thesis with buy/hold/sell recommendation]
+
+--- Critique ---
+[Detailed critique highlighting biases and improvements]
+
+--- Revised Thesis ---
+[Enhanced thesis incorporating feedback]
+```
+
+## 🏗️ Project Structure
 
 ```
-ai-investment-agent/
-├── agents/                 # Multi-agent system
-│   ├── crawler_agent.py    # Web crawling agent
-│   ├── data_agent.py       # Financial data agent
-│   ├── sentiment_agent.py  # Sentiment analysis agent
-│   ├── valuation_agent.py  # Valuation analysis agent
-│   ├── thesis_writer_agent.py  # Thesis generation agent
-│   └── critic_agent.py     # Review and critique agent
-├── utils/                  # Utility functions
-│   ├── crawl4ai_helper.py  # Crawl4AI integration
-│   ├── finance_api.py      # Financial data APIs
-│   └── formatting.py       # Data formatting utilities
-├── app/                    # Web application
-│   └── streamlit_ui.py     # Streamlit interface
-├── output/                 # Generated reports
-│   └── reports/            # PDF and data exports
-├── .env                    # Environment variables
-├── requirements.txt        # Python dependencies
-└── README.md              # Project documentation
+IntelliVest-AI/
+├── agents/                     # AI Agent Modules
+│   ├── crawler_agent.py       # Web crawling and content extraction
+│   ├── sentiment_agent.py     # Sentiment analysis
+│   ├── valuation_agent.py     # Financial valuation assessment
+│   ├── thesis_writer_agent.py # Investment thesis generation
+│   ├── critic_agent.py        # Thesis critique and review
+│   └── thesis_rewrite_agent.py # Thesis revision based on feedback
+├── utils/                      # Utility Functions
+│   ├── search.py              # Tavily API integration
+│   ├── llm.py                 # LLM calling utilities
+│   └── formatting.py          # Output formatting helpers
+├── app/                        # Web Application (Future)
+│   └── streamlit_ui.py        # Streamlit interface
+├── output/                     # Generated Reports
+├── main.py                     # Main application entry point
+├── requirements.txt            # Python dependencies
+└── README.md                   # This file
 ```
 
 ## 🔧 Configuration
 
-### Environment Variables
-Create a `.env` file with the following variables:
+### Required API Keys
+Create a `.env` file in the project root with:
 
 ```env
-# API Keys
-OPENAI_API_KEY=your_openai_api_key
-GOOGLE_API_KEY=your_google_api_key
-ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
-FMP_API_KEY=your_fmp_api_key
+# Primary LLM (Required)
+GOOGLE_API_KEY=your_gemini_api_key_here
 
-# Configuration
-DEFAULT_LLM_PROVIDER=openai
-DEFAULT_MODEL=gpt-4o-mini
-CRAWL_MAX_PAGES=10
-ENABLE_PDF_EXPORT=true
+# Fallback LLM (Recommended)
+GROQ_API_KEY=your_groq_api_key_here
+
+# News Search (Required)
+TAVILY_API_KEY=your_tavily_api_key_here
 ```
 
-## 📖 Usage
+### API Key Setup
+1. **Google AI (Gemini)**: Get API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. **Groq**: Get API key from [Groq Console](https://console.groq.com/)
+3. **Tavily**: Get API key from [Tavily AI](https://tavily.com/)
 
-### Basic Usage
-1. **Start the application**: `streamlit run app/streamlit_ui.py`
-2. **Enter company name or ticker**: e.g., "AAPL" or "Apple Inc."
-3. **Configure analysis parameters**: Time period, metrics, etc.
-4. **Generate report**: Click "Generate Investment Thesis"
-5. **Review results**: Analyze the comprehensive report
-6. **Export**: Download PDF or data files
+## 🧪 Testing Individual Agents
 
-### Advanced Features
-- **Custom Analysis**: Modify agent prompts and parameters
-- **Batch Processing**: Analyze multiple companies
-- **Historical Comparison**: Compare current vs. historical data
-- **Risk Assessment**: Detailed risk factor analysis
+Each agent can be tested independently:
+
+```bash
+# Test sentiment analysis
+python agents/sentiment_agent.py
+
+# Test valuation assessment
+python agents/valuation_agent.py
+
+# Test thesis generation
+python agents/thesis_writer_agent.py
+
+# Test web crawling
+python agents/crawler_agent.py
+```
+
+## 🔄 Pipeline Flow
+
+1. **Input**: Company/stock name from user
+2. **News Search**: Tavily API finds recent financial articles
+3. **Content Extraction**: Crawl4AI extracts markdown content
+4. **Sentiment Analysis**: Gemini AI analyzes market sentiment
+5. **Valuation Assessment**: Financial metrics and valuation analysis
+6. **Thesis Generation**: Comprehensive investment thesis creation
+7. **Critique**: Bias detection and improvement suggestions
+8. **Revision**: Enhanced thesis incorporating feedback
+9. **Output**: Final investment recommendation with supporting analysis
+
+## 🚧 Future Enhancements
+
+- **Web Interface**: Streamlit-based UI for easier interaction
+- **Financial Data Integration**: Real-time stock data and financial ratios
+- **Report Export**: PDF and markdown export capabilities
+- **Historical Analysis**: Track thesis performance over time
+- **Multi-Company Comparison**: Side-by-side analysis of competitors
+- **Risk Scoring**: Quantitative risk assessment metrics
 
 ## 🤝 Contributing
 
-We welcome contributions! Please follow these steps:
-
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-### Development Setup
-```bash
-# Install development dependencies
-pip install -r requirements-dev.txt
-
-# Run tests
-pytest
-
-# Format code
-black .
-isort .
-
-# Lint code
-flake8
-```
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## ⚠️ Disclaimer
 
-- **Crawl4AI**: For web crawling capabilities
-- **CrewAI**: For multi-agent orchestration
-- **yfinance**: For financial data access
-- **Streamlit**: For the web interface
-- **OpenAI & Google**: For LLM capabilities
+This tool is for educational and research purposes only. Investment decisions should be based on comprehensive research and consultation with financial advisors. The authors are not responsible for any financial losses resulting from the use of this tool.
 
-## 📞 Support
+## 🆘 Support
 
-- **Issues**: [GitHub Issues](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/discussions)
-- **Email**: [Your Email]
+If you encounter any issues:
 
-## 🔮 Roadmap
+1. Check that all API keys are properly configured
+2. Ensure all dependencies are installed: `pip install -r requirements.txt`
+3. Verify Playwright browsers are installed: `playwright install`
+4. Check the console output for specific error messages
 
-- [ ] **Real-time Alerts**: Market movement notifications
-- [ ] **Portfolio Integration**: Connect to brokerage accounts
-- [ ] **Advanced ML Models**: Custom prediction models
-- [ ] **Mobile App**: React Native mobile application
-- [ ] **API Service**: RESTful API for third-party integration
-- [ ] **Backtesting**: Historical strategy testing
-- [ ] **Social Features**: Share and discuss theses
-
----
-
-**Disclaimer**: This tool is for educational and research purposes only. Investment decisions should be based on comprehensive analysis and professional advice. Past performance does not guarantee future results.
+For bugs or feature requests, please open an issue on GitHub.
