@@ -35,7 +35,7 @@ class RobustAIClient:
         if os.getenv("GROQ_API_KEY"):
             # Use the most reliable and available Groq models
             providers.extend([
-                "deepseek-r1-distill-llama-70b",
+                "groq/deepseek-r1-distill-llama-70b",
                 "groq/llama3.1-70b-8192",
                 "groq/llama3.1-8b-8192",
                 "groq/gemma2-9b-it",
