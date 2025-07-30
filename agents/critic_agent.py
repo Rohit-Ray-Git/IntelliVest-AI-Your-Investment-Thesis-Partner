@@ -1,5 +1,4 @@
 # critic_agent.py
-# critic_agent.py
 
 import sys
 import os
@@ -26,16 +25,18 @@ class CriticAgent:
     def __init__(self):
         self.model = genai.GenerativeModel("gemini-2.5-flash")
 
-    async def critique_thesis(self, thesis_markdown: str) -> str:
+    async def critique_thesis(self, thesis_markdown: str, company_name: str) -> str:
         prompt = f"""
 You are a professional investment analyst and critical reviewer.
 
-Your job is to critique the following investment thesis:
+Your job is to critique the following investment thesis on **{company_name}**.
 
+Do the following:
 1. Check for any biases or over-optimistic claims.
-2. Identify missing information, risks, or contradictions.
+2. Identify missing information, key risks, or contradictions.
 3. Suggest improvements in reasoning, supporting data, or structure.
-4. Output your feedback in **markdown format**.
+4. If there are inconsistencies between valuation numbers and dates, highlight them.
+5. Output your critique in **markdown format**.
 
 --- Investment Thesis ---
 {thesis_markdown}
@@ -53,7 +54,7 @@ Your job is to critique the following investment thesis:
                 return f"❌ Critique Failed: {fallback_error}"
 
 
-# Standalone test
+# ✅ Standalone test
 if __name__ == "__main__":
     dummy_thesis = """
 ## 1. Summary of Company and Market Tone
@@ -75,7 +76,7 @@ Buy the stock.
     agent = CriticAgent()
 
     async def test():
-        result = await agent.critique_thesis(dummy_thesis)
+        result = await agent.critique_thesis(dummy_thesis, company_name="Example Inc.")
         print("\n🧠 [Critique Output]\n", result)
 
     asyncio.run(test())

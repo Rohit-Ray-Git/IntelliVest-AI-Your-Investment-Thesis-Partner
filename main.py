@@ -6,6 +6,7 @@ from agents.sentiment_agent import SentimentAgent
 from agents.valuation_agent import ValuationAgent
 from agents.thesis_writer_agent import ThesisWriterAgent
 from agents.critic_agent import CriticAgent
+from agents.thesis_rewrite_agent import ThesisRewriteAgent
 from utils.search import search_company_news
 
 print("🚀 IntelliVest AI — Investment Thesis Generator")
@@ -44,19 +45,32 @@ async def main():
         content=combined_md,
         sentiment=sentiment,
         valuation=valuation,
-        company_name=company  # corrected keyword
+        company_name=company
     )
 
     print("\n🧐 Running Thesis Critique...")
     critic_agent = CriticAgent()
-    critique = await critic_agent.critique_thesis(thesis)
+    critique = await critic_agent.critique_thesis(thesis_markdown=thesis, company_name=company)
+
+    print("\n🛠 Rewriting Thesis Based on Critique...")
+    rewriter_agent = ThesisRewriteAgent()
+    revised_thesis = await rewriter_agent.revise_thesis(
+        thesis_markdown=thesis,
+        critique=critique,
+        company_name=company
+    )
 
     print("\n✅ Pipeline Complete.")
+
     print("\n--- Investment Thesis ---\n")
     print(thesis)
 
     print("\n--- Critique ---\n")
     print(critique)
+
+    print("\n--- Revised Thesis ---\n")
+    print(revised_thesis)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
