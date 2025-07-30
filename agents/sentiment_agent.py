@@ -1,55 +1,41 @@
 # agents/sentiment_agent.py
 
-import sys
-import os
-
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import asyncio
-from dotenv import load_dotenv
-import google.generativeai as genai
-from utils.llm import call_groq_deepseek  # fallback function
-
-# --- Load .env and Configure Gemini ---
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-
-if not GOOGLE_API_KEY:
-    raise EnvironmentError("GOOGLE_API_KEY not found in .env or environment variables")
-
-genai.configure(api_key=GOOGLE_API_KEY)
+from utils.ai_client import ai_client
 
 class SentimentAgent:
     def __init__(self):
-        self.template = """
-You are a financial sentiment analysis expert.
-Analyze the following financial report or article and classify the overall sentiment as:
-1. Positive
-2. Negative
-3. Neutral
+        pass
 
-Also, provide a short justification.
-
-Text:
-"""
-
-    async def analyze_sentiment(self, markdown_text: str) -> str:
-        prompt = self.template + markdown_text
-
+    async def analyze_sentiment(self, content: str) -> str:
+        """Analyze sentiment of the given content"""
+        
+        prompt = f"""
+        Analyze the sentiment of the following content about a company. 
+        Focus on financial news, earnings reports, market reactions, and business developments.
+        
+        Content: {content[:8000]}  # Limit content length to avoid token limits
+        
+        Provide a sentiment analysis with:
+        1. Overall sentiment (Positive/Negative/Neutral)
+        2. Key factors influencing the sentiment
+        3. Confidence level in the analysis
+        4. Notable events or news that shaped the sentiment
+        
+        Format your response as a clear, structured analysis.
+        """
+        
+        messages = [
+            {"role": "system", "content": "You are a financial analyst specializing in sentiment analysis of company news and market data."},
+            {"role": "user", "content": prompt}
+        ]
+        
         try:
-            # Attempt Gemini
-            model = genai.GenerativeModel("gemini-2.5-flash")
-            response = await asyncio.to_thread(model.generate_content, prompt)
-            return response.text.strip()
-
+            result = await ai_client.get_completion(messages, max_tokens=2000)
+            return result
         except Exception as e:
-            print("[Gemini Failed] Falling back to Groq. Reason:", str(e))
-            try:
-                # Fallback to Groq LLM
-                return call_groq_deepseek(prompt).strip()
-            except Exception as e2:
-                return f"[Error]: {str(e2)}"
+            print(f"❌ Sentiment analysis failed: {e}")
+            return "Sentiment analysis could not be completed due to technical issues. Please try again later."
 
 # ----------------- Test -------------------
 

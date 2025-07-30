@@ -37,4 +37,12 @@ def search_company_news(company_name: str, max_results: int = 15):
     live_urls = [url for url in urls if is_live_url(url)]
 
     print(f"✅ Found {len(live_urls)} live URLs.")
+    
+    # Print the live URLs
+    if live_urls:
+        print("\n📰 Live URLs found:")
+        for i, url in enumerate(live_urls[:10], 1):  # Show top 10 URLs
+            print(f"  {i}. {url}")
+        print()
+    
     return live_urls[:10]  # Return top 10 live articles

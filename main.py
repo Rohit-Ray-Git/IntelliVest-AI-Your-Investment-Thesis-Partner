@@ -25,7 +25,7 @@ async def main():
     crawler = CrawlerAgent()
     documents = await crawler.crawl_multiple(urls)
 
-    combined_md = "\n\n".join([doc["markdown"] for doc in documents if doc.get("markdown")])
+    combined_md = "\n\n".join([doc["markdown"] for doc in documents if doc.get("markdown") and "❌" not in doc["markdown"]])
 
     if not combined_md.strip():
         print("❌ Unable to extract valid article content. Try different sources.")
@@ -50,7 +50,10 @@ async def main():
 
     print("\n🧐 Running Thesis Critique...")
     critic_agent = CriticAgent()
-    critique = await critic_agent.critique_thesis(thesis_markdown=thesis, company_name=company)
+    critique = await critic_agent.critique_thesis(
+        thesis_markdown=thesis,
+        company_name=company
+    )
 
     print("\n🛠 Rewriting Thesis Based on Critique...")
     rewriter_agent = ThesisRewriteAgent()
@@ -61,7 +64,6 @@ async def main():
     )
 
     print("\n✅ Pipeline Complete.")
-
     print("\n--- Investment Thesis ---\n")
     print(thesis)
 
