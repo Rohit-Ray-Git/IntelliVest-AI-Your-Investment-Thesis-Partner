@@ -257,6 +257,108 @@ Critique Agent → [Quality Review] → Final Output
 - **Thesis Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
 - **Critique Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
 
+## 🔄 **Framework Integration & Interactions**
+
+### **How CrewAI, LangChain & LangGraph Work Together**
+
+The IntelliVest AI system leverages all three frameworks in a sophisticated integration that maximizes their individual strengths:
+
+#### **Integration Flow:**
+```
+1. User Request → Production Interface
+   ↓
+2. CrewAI → Creates 5 agents with LangChain tools
+   ↓
+3. LangChain → Provides tools and LLM interfaces
+   ↓
+4. LangGraph → Manages complex workflow state
+   ↓
+5. Advanced Fallback System → Routes to appropriate LLMs
+   ↓
+6. Final Result → Structured investment analysis
+```
+
+#### **Framework Responsibilities:**
+
+**🚀 CrewAI (v0.150.0) - Agent Orchestration:**
+- **Agent Management**: Creates and manages 5 specialized agents (Research, Sentiment, Valuation, Thesis, Critique)
+- **Task Coordination**: Ensures proper task sequencing and agent communication
+- **Result Aggregation**: Combines outputs from all agents into cohesive analysis
+- **Role Definition**: Defines agent backstories, goals, and expertise areas
+
+**🛠️ LangChain (v0.3.27) - Tool & LLM Framework:**
+- **Tool Development**: Provides `BaseTool` class for creating custom investment tools
+- **LLM Integration**: Unified interface for different AI models (Gemini, Groq)
+- **Chain Building**: Connects tools and models together in functional chains
+- **Memory Management**: Handles context and conversation memory
+
+**🔄 LangGraph (v0.6.1) - Advanced Workflow Orchestration:**
+- **State Management**: Tracks workflow state throughout analysis using `TypedDict`
+- **Decision Making**: Routes analysis based on conditions and intermediate results
+- **Complex Orchestration**: Handles multi-step, conditional workflows
+- **Checkpointing**: Saves and restores workflow state for reliability
+
+#### **Specific Framework Interactions:**
+
+**CrewAI + LangChain Integration:**
+```python
+# CrewAI agents use LangChain tools and LLMs
+research_agent = Agent(
+    role="Research Analyst",
+    tools=[WebCrawlerTool(), FinancialDataTool()],  # LangChain tools
+    llm=ChatGoogleGenerativeAI(model="gemini-2.5-flash")  # LangChain LLM
+)
+```
+
+**LangChain + LangGraph Integration:**
+```python
+# LangGraph nodes use LangChain tools
+def research_node(state: InvestmentState) -> InvestmentState:
+    crawler_tool = WebCrawlerTool()  # LangChain tool
+    result = crawler_tool.run(state["company_name"])
+    state["research_data"] = result
+    return state
+```
+
+**All Three Frameworks Together:**
+```python
+# Production system orchestrates all three frameworks
+class ProductionIntelliVestAI:
+    def __init__(self):
+        # CrewAI for agent orchestration
+        self.crew_system = SimpleInvestmentAnalysisCrew()
+        
+        # LangChain tools for functionality
+        self.tools = [WebCrawlerTool(), FinancialDataTool(), ...]
+        
+        # LangGraph for complex workflows
+        self.workflow = create_workflow()
+```
+
+#### **Why Use All Three Frameworks?**
+
+**CrewAI**: Perfect for **agent-based analysis** where different experts (agents) need to work together sequentially
+**LangChain**: Essential for **tool development** and **LLM integration** across multiple providers
+**LangGraph**: Ideal for **complex workflows** with **state management** and **conditional logic**
+
+**Together, they create a powerful, flexible system that can handle complex investment analysis workflows with multiple specialized agents, custom tools, and intelligent routing!**
+
+#### **Framework Usage Patterns:**
+
+**For Simple Analysis:**
+- **CrewAI** handles the agent orchestration
+- **LangChain** provides tools and LLM interfaces
+
+**For Complex Workflows:**
+- **LangGraph** manages state and conditional routing
+- **CrewAI** provides agent coordination
+- **LangChain** supplies tools and model interfaces
+
+**For Production Deployment:**
+- **All three** work together for maximum flexibility and reliability
+- **Advanced Fallback System** ensures continuous operation
+- **Real-time monitoring** tracks performance across all frameworks
+
 ## 🎯 **Model Configuration**
 
 ### **Primary Model**
