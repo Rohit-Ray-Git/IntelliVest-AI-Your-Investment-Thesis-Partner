@@ -1,10 +1,10 @@
 # 🚀 **IntelliVest AI - Your Investment Thesis Partner**
 
-> **Production-Ready Agentic AI System for Investment Analysis**
+> **Advanced Agentic AI System for Investment Analysis**
 
 ## 📋 **Overview**
 
-IntelliVest AI is a sophisticated, production-ready agentic AI system that provides comprehensive investment analysis using advanced AI models and real-time data. The system combines CrewAI orchestration, advanced fallback systems, and custom tools to deliver professional-grade investment insights.
+IntelliVest AI is a sophisticated agentic AI system that provides comprehensive investment analysis using advanced AI models and real-time data. The system combines CrewAI orchestration, advanced fallback systems, and custom tools to deliver professional-grade investment insights.
 
 ## 🎯 **Key Features**
 
@@ -13,7 +13,7 @@ IntelliVest AI is a sophisticated, production-ready agentic AI system that provi
 - **🎯 Primary Model**: Gemini 2.5 Flash with robust fallbacks
 - **🛠️ Custom Tools**: 6 investment tools with real data access
 - **📊 Real-time Monitoring**: Comprehensive metrics and analytics
-- **🚀 Production Ready**: Enterprise-grade reliability and performance
+- **🔄 LangGraph Workflows**: Advanced workflow orchestration
 
 ## 🏗️ **System Architecture**
 
@@ -32,6 +32,230 @@ IntelliVest AI
 ├── 🔌 API Backend (api/)
 └── 🛠️ Utilities (utils/)
 ```
+
+## 📁 **Project Structure**
+
+### **Core Files**
+```
+IntelliVest-AI/
+├── 🚀 production_integration.py      # Main system interface
+├── 🧪 test_production_integration.py # Comprehensive test suite
+├── 📋 requirements.txt               # Python dependencies
+├── 📖 README.md                      # This documentation
+├── 📁 PROJECT_STRUCTURE.md           # Detailed structure guide
+├── 📊 PRODUCTION_INTEGRATION_SUMMARY.md # System summary
+├── 🔧 .env                           # API configuration
+├── 📄 .gitignore                     # Git ignore rules
+├── 📄 LICENSE                        # MIT License
+└── 🌐 run_app.py                     # Web application launcher
+```
+
+### **Module Organization**
+```
+├── 🤖 agents/                        # CrewAI agents
+│   ├── __init__.py                   # Package initialization
+│   └── crew_agents_with_tools.py     # Main agent definitions
+├── 🧠 llm/                          # LLM management
+│   ├── __init__.py                   # Package initialization
+│   └── advanced_fallback_system.py   # Multi-LLM orchestration
+├── 🛠️ tools/                        # Custom tools
+│   ├── __init__.py                   # Package initialization
+│   └── investment_tools.py           # Investment analysis tools
+├── 🔄 workflows/                     # LangGraph workflows
+│   ├── __init__.py                   # Package initialization
+│   └── investment_workflow.py        # Advanced workflows
+├── 🌐 frontend/                      # Streamlit web interface
+├── 🔌 api/                          # FastAPI backend
+├── 🛠️ utils/                        # Utility functions
+├── 📊 output/                       # Analysis outputs
+└── 🚀 app/                          # Legacy app files
+```
+
+## 🔄 **Workflow Architecture**
+
+### **1. Agentic Flow**
+```
+User Request → Production Interface → Analysis Router → Agent Selection → Tool Execution → Result Synthesis → Response
+```
+
+### **2. CrewAI Agent Orchestration**
+```
+Research Agent → Sentiment Agent → Valuation Agent → Thesis Agent → Critique Agent
+```
+
+### **3. Advanced Fallback System**
+```
+Primary Model (Gemini 2.5 Flash) → Fallback 1 (DeepSeek R1) → Fallback 2 (Llama 3.3-70B) → Additional Models
+```
+
+### **4. LangGraph Workflow**
+```
+State Initialization → Research Node → Sentiment Node → Valuation Node → Decision Router → Thesis Node → Critique Node → Final State
+```
+
+## 🤖 **Agentic Flow Details**
+
+### **Agent Types & Responsibilities**
+
+#### **🔍 Research Agent**
+- **Purpose**: Comprehensive company research and data gathering
+- **Tools**: Web crawler, financial data tools
+- **Output**: Business model analysis, market position, competitive landscape
+
+#### **🧠 Sentiment Agent**
+- **Purpose**: Market sentiment analysis and emotional intelligence
+- **Tools**: Sentiment analysis tool, news crawler
+- **Output**: Market mood, investor psychology, sentiment trends
+
+#### **💰 Valuation Agent**
+- **Purpose**: Financial valuation and metrics analysis
+- **Tools**: Financial data tool, valuation tool
+- **Output**: Financial ratios, DCF analysis, peer comparison
+
+#### **📝 Thesis Agent**
+- **Purpose**: Investment thesis generation and recommendation
+- **Tools**: Thesis generation tool, all previous outputs
+- **Output**: Structured investment thesis with buy/hold/sell recommendation
+
+#### **🔍 Critique Agent**
+- **Purpose**: Quality assurance and bias detection
+- **Tools**: Critique tool, thesis review
+- **Output**: Bias analysis, improvement suggestions, quality assessment
+
+### **Agent Communication Flow**
+```
+Research Agent → [Company Data] → Sentiment Agent → [Market Sentiment] → 
+Valuation Agent → [Financial Analysis] → Thesis Agent → [Investment Thesis] → 
+Critique Agent → [Quality Review] → Final Output
+```
+
+## 🛠️ **Advanced Tools & Libraries**
+
+### **🤖 Agentic Frameworks**
+
+#### **CrewAI (v0.150.0)**
+- **Purpose**: Multi-agent orchestration and task management
+- **Features**: 
+  - Agent role definition and backstory
+  - Task delegation and coordination
+  - Tool integration and execution
+  - Sequential and parallel processing
+- **Usage**: Primary agent orchestration framework
+
+#### **LangChain (v0.3.27)**
+- **Purpose**: LLM framework and tool integration
+- **Features**:
+  - BaseTool implementation for custom tools
+  - LLM abstraction and provider management
+  - Chain and prompt management
+  - Memory and context handling
+- **Usage**: Tool development and LLM integration
+
+#### **LangGraph (v0.6.1)**
+- **Purpose**: Advanced workflow orchestration
+- **Features**:
+  - StateGraph for complex workflows
+  - Conditional routing and decision logic
+  - State management with TypedDict
+  - Checkpointing and state persistence
+- **Usage**: Complex workflow orchestration
+
+### **🧠 LLM Providers & Models**
+
+#### **Google Gemini Models**
+- **Primary**: `gemini-2.5-flash` (8,192 tokens, cost-effective)
+- **Fallback**: `gemini-2.0-flash` (8,192 tokens, reliable)
+- **Features**: High performance, cost optimization, real-time analysis
+
+#### **Groq Models**
+- **Primary Fallback**: `groq/deepseek-r1-distill-llama-70b` (8,192 tokens)
+- **Secondary Fallback**: `groq/llama-3.3-70b-versatile` (8,192 tokens)
+- **Additional**: `groq/llama3.1-70b-8192`, `groq/mixtral-8x7b-32768`
+- **Features**: Ultra-fast inference, high reliability, cost-effective
+
+### **🛠️ Custom Tools**
+
+#### **WebCrawlerTool**
+- **Library**: `Crawl4AI (v0.7.2)`
+- **Purpose**: Real-time web data extraction
+- **Features**: Async crawling, markdown conversion, error handling
+- **Usage**: Financial news and company data gathering
+
+#### **FinancialDataTool**
+- **Library**: `yfinance (v0.2.65)`
+- **Purpose**: Market data and financial metrics
+- **Features**: Real-time stock data, financial ratios, company information
+- **Usage**: Financial analysis and valuation
+
+#### **SentimentAnalysisTool**
+- **Library**: `TextBlob`
+- **Purpose**: Market sentiment quantification
+- **Features**: Polarity scoring, key phrase extraction, sentiment categorization
+- **Usage**: Market mood analysis
+
+#### **ValuationTool**
+- **Purpose**: Financial valuation analysis
+- **Features**: P/E, P/B, P/S ratios, valuation assessment
+- **Usage**: Company valuation and financial analysis
+
+#### **ThesisGenerationTool**
+- **Purpose**: Investment thesis creation
+- **Features**: Structured thesis generation, recommendation framework
+- **Usage**: Professional investment recommendations
+
+#### **CritiqueTool**
+- **Purpose**: Quality assurance and bias detection
+- **Features**: Bias analysis, improvement suggestions, quality assessment
+- **Usage**: Thesis review and improvement
+
+### **🌐 Web & API Frameworks**
+
+#### **Streamlit (v1.44.0)**
+- **Purpose**: Web interface for user interaction
+- **Features**: Real-time updates, interactive components, data visualization
+- **Usage**: User-friendly investment analysis interface
+
+#### **FastAPI (v0.115.6)**
+- **Purpose**: REST API backend
+- **Features**: Auto-generated documentation, async support, type validation
+- **Usage**: Programmatic access to analysis capabilities
+
+#### **Uvicorn**
+- **Purpose**: ASGI server for FastAPI
+- **Features**: High-performance async server, WebSocket support
+- **Usage**: API server deployment
+
+### **📊 Data & Analysis Libraries**
+
+#### **yfinance (v0.2.65)**
+- **Purpose**: Yahoo Finance data access
+- **Features**: Real-time stock data, financial statements, market data
+- **Usage**: Financial data retrieval and analysis
+
+#### **Crawl4AI (v0.7.2)**
+- **Purpose**: Advanced web crawling
+- **Features**: Async crawling, markdown extraction, content processing
+- **Usage**: Financial news and company data extraction
+
+#### **Tavily (v0.3.8)**
+- **Purpose**: Web search and content discovery
+- **Features**: Financial news search, content aggregation
+- **Usage**: News and information gathering
+
+### **🔄 Advanced Fallback System**
+
+#### **Multi-LLM Orchestration**
+- **7 AI Models**: Intelligent routing based on task type
+- **Fallback Chains**: Automatic failover with confidence scoring
+- **Performance Monitoring**: Real-time health checks and metrics
+- **Cost Optimization**: Intelligent model selection based on cost and performance
+
+#### **Task-Based Routing**
+- **Research Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
+- **Sentiment Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
+- **Valuation Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
+- **Thesis Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
+- **Critique Tasks**: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B
 
 ## 🎯 **Model Configuration**
 
@@ -118,17 +342,6 @@ Professional investment thesis with clear recommendations, value drivers, and ri
 ### **🎯 Full Analysis**
 Complete end-to-end analysis using CrewAI with 5 specialized agents working sequentially.
 
-## 🛠️ **Custom Tools**
-
-The system includes 6 specialized tools:
-
-1. **🕷️ Web Crawler**: Real-time web data extraction
-2. **📊 Financial Data**: Market data and financial metrics
-3. **🧠 Sentiment Analysis**: Market sentiment quantification
-4. **💰 Valuation Tools**: Financial modeling and analysis
-5. **📝 Thesis Generation**: Professional investment thesis creation
-6. **🔍 Critique Tools**: Quality assurance and improvement
-
 ## 📈 **Monitoring & Analytics**
 
 ### **Real-time Metrics**
@@ -187,30 +400,6 @@ The system provides REST API endpoints for integration:
 - `GET /history`: Get analysis history
 - `GET /metrics`: Get performance metrics
 
-## 📁 **Project Structure**
-
-```
-IntelliVest-AI/
-├── 🚀 production_integration.py      # Main production interface
-├── 🧪 test_production_integration.py # Comprehensive test suite
-├── 📋 requirements.txt               # Dependencies
-├── 📖 README.md                      # This file
-├── 🔧 .env                           # API configuration
-├── 🤖 agents/                        # CrewAI agents
-│   └── crew_agents_with_tools.py     # Main agent definitions
-├── 🧠 llm/                          # LLM management
-│   └── advanced_fallback_system.py   # Multi-LLM orchestration
-├── 🛠️ tools/                        # Custom tools
-│   └── investment_tools.py           # Investment analysis tools
-├── 🔄 workflows/                     # LangGraph workflows
-│   └── investment_workflow.py        # Advanced workflows
-├── 🌐 frontend/                      # Streamlit web interface
-├── 🔌 api/                          # FastAPI backend
-├── 🛠️ utils/                        # Utility functions
-├── 📊 output/                       # Analysis outputs
-└── 🚀 app/                          # Legacy app files
-```
-
 ## 🎯 **Performance Metrics**
 
 ### **Recent Test Results**
@@ -229,16 +418,16 @@ source venv/bin/activate
 python run_app.py
 ```
 
-### **Production Deployment**
+### **System Deployment**
 ```bash
-# Install production dependencies
+# Install dependencies
 pip install -r requirements.txt
 
 # Set environment variables
 export GOOGLE_API_KEY=your_key
 export OPENAI_API_KEY=your_groq_key
 
-# Run production system
+# Run system
 python production_integration.py
 ```
 
