@@ -7,6 +7,7 @@ import os
 from typing import List, Dict, Any
 import litellm
 from litellm import completion
+import google.generativeai as genai
 
 class RobustAIClient:
     def __init__(self):
@@ -16,6 +17,11 @@ class RobustAIClient:
         self.retry_delays = [1, 2, 5, 10, 30]  # Progressive delays
         self.max_retries = 3
         
+        # Configure Google AI if API key is available
+        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        if self.google_api_key:
+            genai.configure(api_key=self.google_api_key)
+        
     def _get_available_providers(self):
         """Get list of available providers based on API keys"""
         providers = []
@@ -24,15 +30,19 @@ class RobustAIClient:
         if os.getenv("GOOGLE_API_KEY"):
             # Use the most reliable Gemini models
             providers.extend([
-                "model/gemini-2.5-flash",
-                "gemini/gemini-1.5-flash",
-                "gemini/gemini-1.5-pro",
-                "gemini/gemini-2.0-flash-exp"
+                "gemini-2.5-flash",  # Direct Google API - fastest and most capable
+                "gemini-2.0-flash",  # Direct Google API - fast
+                "gemini-2.0-flash-exp",  # Direct Google API - experimental features
+                "gemini-1.5-flash",  # Direct Google API - reliable
+                "model/gemini-2.5-flash",  # LiteLLM format (backup)
+                "gemini/gemini-1.5-flash",  # LiteLLM format (backup)
+                "gemini/gemini-1.5-pro",  # LiteLLM format (backup)
+                "gemini/gemini-2.0-flash-exp"  # LiteLLM format (backup)
             ])
             print("✅ Google API key found - Gemini models available")
         
         # Check for Groq API key
-        if os.getenv("GROQ_API_KEY"):
+        if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_BASE") and "groq.com" in os.getenv("OPENAI_API_BASE", ""):
             # Use the most reliable and available Groq models
             providers.extend([
                 "groq/deepseek-r1-distill-llama-70b",
@@ -65,14 +75,12 @@ class RobustAIClient:
                 provider = self.providers[self.current_provider_index]
                 print(f"🤖 Using AI provider: {provider}")
                 
-                response = completion(
-                    model=provider,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=0.7
-                )
-                
-                return response.choices[0].message.content
+                # Check if this is a direct Google API model
+                if provider in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"]:
+                    return await self._get_google_completion(provider, messages, max_tokens)
+                else:
+                    # Use LiteLLM for other providers
+                    return await self._get_litellm_completion(provider, messages, max_tokens)
                 
             except Exception as e:
                 error_msg = str(e).lower()
@@ -105,6 +113,56 @@ class RobustAIClient:
         # If all providers fail, return a fallback response
         print("⚠️ All AI providers failed, using fallback response")
         return self._get_fallback_response(messages)
+    
+    async def _get_google_completion(self, model_name: str, messages: List[Dict], max_tokens: int) -> str:
+        """Get completion using direct Google API"""
+        try:
+            # Create model instance
+            model = genai.GenerativeModel(model_name)
+            
+            # Convert messages to Google API format
+            # Google API expects a simple string, so we'll combine all messages
+            combined_content = ""
+            for message in messages:
+                role = message.get("role", "user")
+                content = message.get("content", "")
+                if role == "user":
+                    combined_content += f"User: {content}\n"
+                elif role == "assistant":
+                    combined_content += f"Assistant: {content}\n"
+                elif role == "system":
+                    combined_content += f"System: {content}\n"
+            
+            # Generate content
+            response = model.generate_content(
+                combined_content,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.7,
+                    max_output_tokens=min(max_tokens, 65536),  # Google's limit
+                )
+            )
+            
+            return response.text if response.text else "No response generated"
+            
+        except Exception as e:
+            print(f"❌ Google API error with {model_name}: {e}")
+            raise e
+    
+    async def _get_litellm_completion(self, provider: str, messages: List[Dict], max_tokens: int) -> str:
+        """Get completion using LiteLLM"""
+        try:
+            response = completion(
+                model=provider,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.7
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            print(f"❌ LiteLLM error with {provider}: {e}")
+            raise e
     
     def _get_fallback_response(self, messages: List[Dict]) -> str:
         """Provide a comprehensive fallback response when all AI providers fail"""
