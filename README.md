@@ -375,7 +375,7 @@ class ProductionIntelliVestAI:
 ```bash
 # Clone the repository
 git clone https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner.git
-cd IntelliVest-AI
+cd IntelliVest-AI-Your-Investment-Thesis-Partner
 
 # Create virtual environment
 python -m venv venv
