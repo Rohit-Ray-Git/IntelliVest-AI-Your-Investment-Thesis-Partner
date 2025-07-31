@@ -457,8 +457,8 @@ class InvestmentWorkflow:
         # Set entry point
         workflow.set_entry_point("research")
         
-        # Compile the workflow
-        self.app = workflow.compile(checkpointer=MemorySaver())
+        # Compile the workflow without checkpointing for now
+        self.app = workflow.compile()
         
         print("✅ LangGraph workflow created successfully")
     
