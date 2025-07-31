@@ -264,4 +264,3 @@ For support and questions:
 ---
 
 **🎉 IntelliVest AI - Transforming Investment Analysis with Advanced AI**
-
