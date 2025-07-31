@@ -374,7 +374,7 @@ class ProductionIntelliVestAI:
 ### **1. Environment Setup**
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner.git
 cd IntelliVest-AI
 
 # Create virtual environment
