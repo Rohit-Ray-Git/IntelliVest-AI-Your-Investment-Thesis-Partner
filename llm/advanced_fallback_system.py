@@ -30,12 +30,12 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 class ModelProvider(Enum):
     """Available model providers"""
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GROQ_DEEPSEEK_R1 = "groq/deepseek-r1-distill-llama-70b"
+    GROQ_LLAMA_3_3_70B = "groq/llama-3.3-70b-versatile"
     GROQ_LLAMA_70B = "groq/llama3.1-70b-8192"
     GROQ_LLAMA_8B = "groq/llama3.1-8b-8192"
     GROQ_MIXTRAL = "groq/mixtral-8x7b-32768"
-    GROQ_GEMMA = "groq/gemma2-9b-it"
-    GROQ_DEEPSEEK = "groq/deepseek-r1-distill-llama-70b"
-    GEMINI_2_5_FLASH = "gemini-2.5-flash"
     GEMINI_2_0_FLASH = "gemini-2.0-flash"
     GEMINI_1_5_FLASH = "gemini-1.5-flash"
 
@@ -92,6 +92,39 @@ class AdvancedFallbackSystem:
     def setup_models(self):
         """Setup all available models with configurations"""
         self.models = {
+            ModelProvider.GEMINI_2_5_FLASH: ModelConfig(
+                provider=ModelProvider.GEMINI_2_5_FLASH,
+                name="Gemini 2.5 Flash",
+                max_tokens=8192,
+                temperature=0.7,
+                cost_per_1k_tokens=0.0005,
+                speed_rating=9.0,
+                quality_rating=9.5,
+                reliability=0.92,
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE, TaskType.GENERAL]
+            ),
+            ModelProvider.GROQ_DEEPSEEK_R1: ModelConfig(
+                provider=ModelProvider.GROQ_DEEPSEEK_R1,
+                name="Groq DeepSeek R1 Distill Llama-70B",
+                max_tokens=8192,
+                temperature=0.7,
+                cost_per_1k_tokens=0.0006,
+                speed_rating=9.2,
+                quality_rating=8.8,
+                reliability=0.94,
+                task_specialties=[TaskType.RESEARCH, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE]
+            ),
+            ModelProvider.GROQ_LLAMA_3_3_70B: ModelConfig(
+                provider=ModelProvider.GROQ_LLAMA_3_3_70B,
+                name="Groq Llama 3.3-70B Versatile",
+                max_tokens=8192,
+                temperature=0.7,
+                cost_per_1k_tokens=0.0007,
+                speed_rating=8.8,
+                quality_rating=9.0,
+                reliability=0.93,
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE, TaskType.GENERAL]
+            ),
             ModelProvider.GROQ_LLAMA_70B: ModelConfig(
                 provider=ModelProvider.GROQ_LLAMA_70B,
                 name="Groq Llama3.1-70B",
@@ -125,17 +158,6 @@ class AdvancedFallbackSystem:
                 reliability=0.92,
                 task_specialties=[TaskType.RESEARCH, TaskType.CRITIQUE]
             ),
-            ModelProvider.GEMINI_2_5_FLASH: ModelConfig(
-                provider=ModelProvider.GEMINI_2_5_FLASH,
-                name="Gemini 2.5 Flash",
-                max_tokens=8192,
-                temperature=0.7,
-                cost_per_1k_tokens=0.0005,
-                speed_rating=9.0,
-                quality_rating=9.0,
-                reliability=0.90,
-                task_specialties=[TaskType.THESIS, TaskType.CRITIQUE, TaskType.VALUATION]
-            ),
             ModelProvider.GEMINI_2_0_FLASH: ModelConfig(
                 provider=ModelProvider.GEMINI_2_0_FLASH,
                 name="Gemini 2.0 Flash",
@@ -149,46 +171,62 @@ class AdvancedFallbackSystem:
             )
         }
         
-        print("✅ Advanced fallback system initialized with 5 models")
+        print("✅ Advanced fallback system initialized with 7 models")
+        print("🎯 Primary Model: Gemini 2.5 Flash")
+        print("🔄 Primary Fallback: Groq DeepSeek R1 Distill Llama-70B")
     
     def setup_fallback_chains(self):
         """Setup intelligent fallback chains for different task types"""
         self.fallback_chains = {
             TaskType.RESEARCH: [
-                ModelProvider.GROQ_LLAMA_70B,
-                ModelProvider.GEMINI_2_0_FLASH,
-                ModelProvider.GROQ_MIXTRAL,
-                ModelProvider.GROQ_LLAMA_8B
+                ModelProvider.GEMINI_2_5_FLASH,      # Primary
+                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
+                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
+                ModelProvider.GROQ_LLAMA_70B,        # Tertiary fallback
+                ModelProvider.GROQ_MIXTRAL,          # Quaternary fallback
+                ModelProvider.GROQ_LLAMA_8B          # Final fallback
             ],
             TaskType.SENTIMENT: [
-                ModelProvider.GROQ_LLAMA_8B,
-                ModelProvider.GEMINI_2_0_FLASH,
-                ModelProvider.GROQ_LLAMA_70B
+                ModelProvider.GEMINI_2_5_FLASH,      # Primary
+                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
+                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
+                ModelProvider.GROQ_LLAMA_8B,         # Tertiary fallback
+                ModelProvider.GEMINI_2_0_FLASH       # Final fallback
             ],
             TaskType.VALUATION: [
-                ModelProvider.GROQ_LLAMA_70B,
-                ModelProvider.GEMINI_2_5_FLASH,
-                ModelProvider.GROQ_MIXTRAL
+                ModelProvider.GEMINI_2_5_FLASH,      # Primary
+                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
+                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
+                ModelProvider.GROQ_LLAMA_70B,        # Tertiary fallback
+                ModelProvider.GROQ_MIXTRAL           # Final fallback
             ],
             TaskType.THESIS: [
-                ModelProvider.GEMINI_2_5_FLASH,
-                ModelProvider.GROQ_LLAMA_70B,
-                ModelProvider.GROQ_MIXTRAL
+                ModelProvider.GEMINI_2_5_FLASH,      # Primary
+                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
+                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
+                ModelProvider.GROQ_LLAMA_70B,        # Tertiary fallback
+                ModelProvider.GROQ_MIXTRAL           # Final fallback
             ],
             TaskType.CRITIQUE: [
-                ModelProvider.GEMINI_2_5_FLASH,
-                ModelProvider.GROQ_MIXTRAL,
-                ModelProvider.GROQ_LLAMA_70B
+                ModelProvider.GEMINI_2_5_FLASH,      # Primary
+                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
+                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
+                ModelProvider.GROQ_MIXTRAL,          # Tertiary fallback
+                ModelProvider.GROQ_LLAMA_70B         # Final fallback
             ],
             TaskType.GENERAL: [
-                ModelProvider.GROQ_LLAMA_8B,
-                ModelProvider.GROQ_LLAMA_70B,
-                ModelProvider.GEMINI_2_0_FLASH,
-                ModelProvider.GROQ_MIXTRAL
+                ModelProvider.GEMINI_2_5_FLASH,      # Primary
+                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
+                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
+                ModelProvider.GROQ_LLAMA_8B,         # Tertiary fallback
+                ModelProvider.GROQ_LLAMA_70B,        # Quaternary fallback
+                ModelProvider.GEMINI_2_0_FLASH,      # Quinary fallback
+                ModelProvider.GROQ_MIXTRAL           # Final fallback
             ]
         }
         
         print("✅ Fallback chains configured for all task types")
+        print("🔄 New Fallback Chain: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B → Others")
     
     def get_llm_instance(self, provider: ModelProvider) -> Optional[ChatOpenAI]:
         """Get LLM instance for a specific provider"""
