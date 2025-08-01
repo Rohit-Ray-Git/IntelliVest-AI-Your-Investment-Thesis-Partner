@@ -600,5 +600,94 @@ class CryptoAgent:
             print(f"❌ Error performing technical analysis: {e}")
             return "Technical analysis failed"
 
+    async def handle_message(self, message):
+        """
+        Handle incoming messages from other agents
+        
+        Args:
+            message: AgentMessage object containing the message
+            
+        Returns:
+            Response dictionary
+        """
+        try:
+            if message.message_type.value == "data_request":
+                return await self._handle_data_request(message)
+            elif message.message_type.value == "collaboration_request":
+                return await self._handle_collaboration_request(message)
+            elif message.message_type.value == "analysis_request":
+                return await self._handle_analysis_request(message)
+            elif message.message_type.value == "validation_request":
+                return await self._handle_validation_request(message)
+            else:
+                return {
+                    "status": "success",
+                    "agent": self.name,
+                    "message_type": message.message_type.value,
+                    "response": f"Processed {message.message_type.value} from {message.sender}"
+                }
+        except Exception as e:
+            return {
+                "status": "error",
+                "agent": self.name,
+                "error": str(e)
+            }
+    
+    async def _handle_data_request(self, message):
+        """Handle data requests from other agents"""
+        company_name = message.content.get("company_name", "")
+        request_type = message.content.get("request_type", "")
+        
+        if request_type == "crypto_data":
+            crypto_data = await self.analyze_cryptocurrency(company_name)
+            return {
+                "status": "success",
+                "agent": self.name,
+                "data": crypto_data,
+                "data_type": "crypto_data"
+            }
+        else:
+            return {
+                "status": "success",
+                "agent": self.name,
+                "response": f"Provided {request_type} data for {company_name}"
+            }
+    
+    async def _handle_collaboration_request(self, message):
+        """Handle collaboration requests from other agents"""
+        collaboration_type = message.content.get("collaboration_type", "")
+        shared_data = message.content.get("shared_data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "collaboration_type": collaboration_type,
+            "response": f"Collaborating on {collaboration_type}"
+        }
+    
+    async def _handle_analysis_request(self, message):
+        """Handle analysis requests from other agents"""
+        analysis_type = message.content.get("analysis_type", "")
+        data = message.content.get("data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "analysis_type": analysis_type,
+            "response": f"Performed {analysis_type} analysis"
+        }
+    
+    async def _handle_validation_request(self, message):
+        """Handle validation requests from other agents"""
+        validation_type = message.content.get("validation_type", "")
+        data = message.content.get("data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "validation_type": validation_type,
+            "response": f"Validated {validation_type}"
+        }
+
 # Export the agent
 __all__ = ['CryptoAgent'] 

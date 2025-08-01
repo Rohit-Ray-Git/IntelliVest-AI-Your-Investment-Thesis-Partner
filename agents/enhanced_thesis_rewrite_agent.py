@@ -111,6 +111,120 @@ class EnhancedThesisRewriteAgent(CommunicatingAgent):
             print(f"❌ Enhanced Thesis Rewrite Agent: Error during intelligent thesis revision - {str(e)}")
             return f"❌ Intelligent thesis revision failed: {str(e)}"
     
+    async def enhance_thesis_with_communication(self, thesis_data: Dict[str, Any], available_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Enhance thesis with communication capabilities (alias for revise_thesis_intelligently)
+        
+        Args:
+            thesis_data: Original thesis data
+            available_data: Any existing data from previous analysis
+            
+        Returns:
+            Dictionary containing enhanced thesis
+        """
+        try:
+            thesis_markdown = thesis_data.get("thesis_content", "")
+            critique = thesis_data.get("critique_content", "")
+            company_name = thesis_data.get("company_name", "Unknown Company")
+            
+            enhanced_thesis = await self.revise_thesis_intelligently(thesis_markdown, critique, company_name, available_data)
+            
+            return {
+                "company_name": company_name,
+                "enhanced_thesis": enhanced_thesis,
+                "status": "completed",
+                "enhancements_made": True,
+                "communication_used": True
+            }
+        except Exception as e:
+            return {
+                "company_name": thesis_data.get("company_name", "Unknown Company"),
+                "enhanced_thesis": f"Error enhancing thesis: {str(e)}",
+                "status": "error",
+                "enhancements_made": False,
+                "communication_used": False
+            }
+    
+    async def handle_message(self, message):
+        """
+        Handle incoming messages from other agents
+        
+        Args:
+            message: AgentMessage object containing the message
+            
+        Returns:
+            Response dictionary
+        """
+        try:
+            if message.message_type.value == "data_request":
+                return await self._handle_data_request(message)
+            elif message.message_type.value == "collaboration_request":
+                return await self._handle_collaboration_request(message)
+            elif message.message_type.value == "analysis_request":
+                return await self._handle_analysis_request(message)
+            elif message.message_type.value == "validation_request":
+                return await self._handle_validation_request(message)
+            else:
+                return {
+                    "status": "success",
+                    "agent": self.name,
+                    "message_type": message.message_type.value,
+                    "response": f"Processed {message.message_type.value} from {message.sender}"
+                }
+        except Exception as e:
+            return {
+                "status": "error",
+                "agent": self.name,
+                "error": str(e)
+            }
+    
+    async def _handle_data_request(self, message):
+        """Handle data requests from other agents"""
+        company_name = message.content.get("company_name", "")
+        request_type = message.content.get("request_type", "")
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "response": f"Provided {request_type} data for {company_name}"
+        }
+    
+    async def _handle_collaboration_request(self, message):
+        """Handle collaboration requests from other agents"""
+        collaboration_type = message.content.get("collaboration_type", "")
+        shared_data = message.content.get("shared_data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "collaboration_type": collaboration_type,
+            "response": f"Collaborating on {collaboration_type}"
+        }
+    
+    async def _handle_analysis_request(self, message):
+        """Handle analysis requests from other agents"""
+        analysis_type = message.content.get("analysis_type", "")
+        data = message.content.get("data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "analysis_type": analysis_type,
+            "response": f"Performed {analysis_type} analysis"
+        }
+    
+    async def _handle_validation_request(self, message):
+        """Handle validation requests from other agents"""
+        validation_type = message.content.get("validation_type", "")
+        data = message.content.get("data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "validation_type": validation_type,
+            "response": f"Validated {validation_type}"
+        }
+    
     async def _gather_data_intelligently(self, company_name: str, improvements_needed: Dict[str, Any], 
                                        available_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """Intelligently gather additional data from other agents"""

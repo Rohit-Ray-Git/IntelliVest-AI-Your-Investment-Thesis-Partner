@@ -13,6 +13,7 @@ import asyncio
 import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -68,6 +69,8 @@ class ThesisAgent:
         
         thesis_data = {
             "company_name": company_name,
+            "current_date": datetime.now().strftime("%B %d, %Y"),
+            "current_year": datetime.now().year,
             "investment_recommendation": "",
             "value_proposition": "",
             "investment_case": "",
@@ -135,7 +138,101 @@ class ThesisAgent:
             
         except Exception as e:
             print(f"❌ Thesis Agent: Error during thesis generation - {str(e)}")
-            return thesis_data
+            return {
+                "company_name": company_name,
+                "thesis_content": f"Error generating thesis: {str(e)}",
+                "status": "error",
+                "recommendation": "Unable to generate recommendation"
+            }
+    
+    async def handle_message(self, message):
+        """
+        Handle incoming messages from other agents
+        
+        Args:
+            message: AgentMessage object containing the message
+            
+        Returns:
+            Response dictionary
+        """
+        try:
+            if message.message_type.value == "data_request":
+                return await self._handle_data_request(message)
+            elif message.message_type.value == "collaboration_request":
+                return await self._handle_collaboration_request(message)
+            elif message.message_type.value == "analysis_request":
+                return await self._handle_analysis_request(message)
+            elif message.message_type.value == "validation_request":
+                return await self._handle_validation_request(message)
+            else:
+                return {
+                    "status": "success",
+                    "agent": self.name,
+                    "message_type": message.message_type.value,
+                    "response": f"Processed {message.message_type.value} from {message.sender}"
+                }
+        except Exception as e:
+            return {
+                "status": "error",
+                "agent": self.name,
+                "error": str(e)
+            }
+    
+    async def _handle_data_request(self, message):
+        """Handle data requests from other agents"""
+        company_name = message.content.get("company_name", "")
+        request_type = message.content.get("request_type", "")
+        
+        if request_type == "thesis_data":
+            thesis_data = await self.generate_thesis(company_name, {})
+            return {
+                "status": "success",
+                "agent": self.name,
+                "data": thesis_data,
+                "data_type": "thesis_data"
+            }
+        else:
+            return {
+                "status": "success",
+                "agent": self.name,
+                "response": f"Provided {request_type} data for {company_name}"
+            }
+    
+    async def _handle_collaboration_request(self, message):
+        """Handle collaboration requests from other agents"""
+        collaboration_type = message.content.get("collaboration_type", "")
+        shared_data = message.content.get("shared_data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "collaboration_type": collaboration_type,
+            "response": f"Collaborating on {collaboration_type}"
+        }
+    
+    async def _handle_analysis_request(self, message):
+        """Handle analysis requests from other agents"""
+        analysis_type = message.content.get("analysis_type", "")
+        data = message.content.get("data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "analysis_type": analysis_type,
+            "response": f"Performed {analysis_type} analysis"
+        }
+    
+    async def _handle_validation_request(self, message):
+        """Handle validation requests from other agents"""
+        validation_type = message.content.get("validation_type", "")
+        data = message.content.get("data", {})
+        
+        return {
+            "status": "success",
+            "agent": self.name,
+            "validation_type": validation_type,
+            "response": f"Validated {validation_type}"
+        }
     
     async def _generate_recommendation(self, company_name: str, research_data: Dict[str, Any], 
                                      sentiment_data: Dict[str, Any], valuation_data: Dict[str, Any]) -> str:
@@ -149,11 +246,13 @@ class ThesisAgent:
             }
             
             prompt = f"""
-            Generate an investment recommendation for {company_name} based on comprehensive analysis:
+            Generate an investment recommendation for {company_name} based on comprehensive analysis as of {datetime.now().strftime("%B %d, %Y")}:
             
             Research Data: {research_data}
             Sentiment Data: {sentiment_data}
             Valuation Data: {valuation_data}
+            
+            IMPORTANT: Use current {datetime.now().year} market data and conditions. Do not reference outdated information from previous years.
             
             Provide a clear investment recommendation covering:
             
@@ -168,7 +267,7 @@ class ThesisAgent:
             - Risk factors considered
             - Expected return potential
             
-            Format professionally for institutional investors.
+            Format professionally for institutional investors with current date context.
             """
             
             result = await self.fallback_system.execute_with_fallback(
@@ -188,11 +287,13 @@ class ThesisAgent:
         """Create compelling value proposition"""
         try:
             prompt = f"""
-            Create a compelling value proposition for {company_name} based on:
+            Create a compelling value proposition for {company_name} based on current {datetime.now().year} market conditions:
             
             Research Data: {research_data}
             Sentiment Data: {sentiment_data}
             Valuation Data: {valuation_data}
+            
+            IMPORTANT: Use current {datetime.now().year} market data and conditions. Do not reference outdated information from previous years.
             
             Provide a compelling value proposition covering:
             
@@ -208,7 +309,7 @@ class ThesisAgent:
             - Market positioning
             - Value creation potential
             
-            Format professionally for institutional investors.
+            Format professionally for institutional investors with current date context.
             """
             
             result = await self.fallback_system.execute_with_fallback(

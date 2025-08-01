@@ -58,7 +58,7 @@ async def generate_thesis(request: CompanyRequest):
         # Step 2: Research Analysis
         progress_log.append("📚 Conducting comprehensive research...")
         research_agent = ResearchAgent()
-        research_data = await research_agent.conduct_research(company)
+        research_data = await research_agent.research_company(company)
         
         # Track successful research
         scraped_urls = research_data.get("data_sources", [])
@@ -72,7 +72,7 @@ async def generate_thesis(request: CompanyRequest):
         # Step 4: Valuation Analysis
         progress_log.append("💰 Estimating valuation...")
         valuation_agent = ValuationAgent()
-        valuation_data = await valuation_agent.estimate_valuation(company, research_data)
+        valuation_data = await valuation_agent.perform_valuation(company, research_data)
         
         # Step 5: Generate Thesis
         progress_log.append("📈 Generating investment thesis...")
