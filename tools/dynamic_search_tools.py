@@ -45,6 +45,13 @@ try:
 except ImportError:
     TRAFILATURA_AVAILABLE = False
 
+# Import ScrapeGraphAI for intelligent web scraping
+try:
+    from scrapegraphai import ScrapeGraphAI
+    SCRAPEGRAPHAI_AVAILABLE = True
+except ImportError:
+    SCRAPEGRAPHAI_AVAILABLE = False
+
 # Import crawl4ai for advanced web crawling
 try:
     from crawl4ai import AsyncWebCrawler
@@ -73,6 +80,7 @@ class DynamicWebSearchTool(BaseTool):
     # Define fields that will be set in __init__
     session: Optional[requests.Session] = Field(default=None, exclude=True)
     crawler: Optional[Any] = Field(default=None, exclude=True)
+    scraper: Optional[Any] = Field(default=None, exclude=True)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -80,6 +88,18 @@ class DynamicWebSearchTool(BaseTool):
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+        
+        # Initialize ScrapeGraphAI for intelligent web scraping
+        if SCRAPEGRAPHAI_AVAILABLE:
+            try:
+                self.scraper = ScrapeGraphAI()
+                print("✅ ScrapeGraphAI initialized for intelligent web scraping")
+            except Exception as e:
+                print(f"⚠️ ScrapeGraphAI initialization failed: {e}")
+                self.scraper = None
+        else:
+            print("⚠️ ScrapeGraphAI not available, using fallback methods")
+            self.scraper = None
         
         # Initialize Trafilatura for ultra-fast content extraction
         if TRAFILATURA_AVAILABLE:
@@ -190,10 +210,10 @@ class DynamicWebSearchTool(BaseTool):
 📝 Content Preview: Investment analysis for {query} suggests considering multiple factors including current market conditions, company fundamentals, and industry outlook as of 2025. This analysis provides a foundation for further research and investment decision-making."""
     
     def _scrape_discovered_sites(self, urls: List[str], query: str) -> List[Dict[str, Any]]:
-        """Scrape content from discovered sites using LLM-based scraping with requests fallback"""
+        """Scrape content from discovered sites using ScrapeGraphAI with requests fallback"""
         scraped_content = []
         
-        # Use LLM-based scraping as primary method with requests fallback
+        # Use ScrapeGraphAI as primary method with requests fallback
         for url in urls[:3]:  # Process 3 URLs
             try:
                 print(f"🔍 Scraping: {url}")
@@ -203,13 +223,16 @@ class DynamicWebSearchTool(BaseTool):
                     print(f"⏭️ Skipping problematic URL: {url}")
                     continue
                 
-                # Try LLM-based scraping first (most intelligent)
-                print(f"🧠 Using LLM-based scraping for: {url}")
-                content_data = self._scrape_with_llm(url)
+                # Try ScrapeGraphAI first (most intelligent)
+                if self.scraper:
+                    print(f"🧠 Using ScrapeGraphAI for: {url}")
+                    content_data = self._scrape_with_scrapegraphai(url)
+                else:
+                    content_data = None
                 
-                # If LLM scraping fails, try requests as fallback
-                if not content_data.get('success'):
-                    print(f"🔄 LLM scraping failed, trying requests as fallback: {url}")
+                # If ScrapeGraphAI fails or is not available, try requests as fallback
+                if not content_data or not content_data.get('success'):
+                    print(f"🔄 ScrapeGraphAI failed, trying requests as fallback: {url}")
                     content_data = self._scrape_with_requests(url)
                     if content_data.get('success'):
                         content_data['method'] = 'requests (fallback)'
@@ -222,9 +245,9 @@ class DynamicWebSearchTool(BaseTool):
                             'content': content,
                             'title': content_data.get('title', ''),
                             'success': True,
-                            'method': content_data.get('method', 'LLM-based')
+                            'method': content_data.get('method', 'ScrapeGraphAI')
                         })
-                        print(f"✅ Successfully scraped: {url} (using {content_data.get('method', 'LLM-based')})")
+                        print(f"✅ Successfully scraped: {url} (using {content_data.get('method', 'ScrapeGraphAI')})")
                     else:
                         print(f"⚠️ Content not relevant for: {url}")
                 else:
@@ -397,165 +420,61 @@ class DynamicWebSearchTool(BaseTool):
                 'method': 'crawl4ai'
             }
     
-    def _scrape_with_llm(self, url: str) -> Dict[str, Any]:
-        """Use LLM to intelligently scrape and extract content from websites"""
+    def _scrape_with_scrapegraphai(self, url: str) -> Dict[str, Any]:
+        """Use ScrapeGraphAI to intelligently scrape and extract content from websites"""
         try:
-            print(f"🧠 Using LLM-based scraping for: {url}")
+            print(f"🧠 Using ScrapeGraphAI for: {url}")
             
-            # First get the raw HTML using requests
-            response = self.session.get(url, timeout=10)
-            response.raise_for_status()
+            if not self.scraper:
+                return {
+                    'url': url,
+                    'content': '',
+                    'title': '',
+                    'success': False,
+                    'error': 'ScrapeGraphAI not available',
+                    'method': 'ScrapeGraphAI'
+                }
             
-            # Extract basic content first
-            soup = BeautifulSoup(response.text, 'html.parser')
+            # Use ScrapeGraphAI to scrape the URL
+            result = self.scraper.scrape(url)
             
-            # Remove script and style elements
-            for script in soup(["script", "style", "nav", "header", "footer", "aside"]):
-                script.decompose()
-            
-            # Get the main content areas
-            main_content = ""
-            
-            # Try to find main content areas
-            content_selectors = [
-                'main', 'article', '.content', '.main-content', '.post-content',
-                '.entry-content', '.article-content', '.story-content', '.text-content',
-                '.body-content', '.page-content', '.main', '.post', '.entry',
-                '[role="main"]', '[role="article"]', '.article', '.story'
-            ]
-            
-            for selector in content_selectors:
-                elements = soup.select(selector)
-                if elements:
-                    text_parts = []
-                    for elem in elements:
-                        text = elem.get_text(separator=' ', strip=True)
-                        if text and len(text) > 50:
-                            text_parts.append(text)
-                    if text_parts:
-                        main_content = ' '.join(text_parts)
-                        break
-            
-            # If no main content found, get all paragraphs and headings
-            if not main_content:
-                text_elements = soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'])
-                text_parts = []
-                for elem in text_elements:
-                    text = elem.get_text(separator=' ', strip=True)
-                    if text and len(text) > 30:
-                        text_parts.append(text)
-                main_content = ' '.join(text_parts)
-            
-            # Clean up content
-            main_content = re.sub(r'\s+', ' ', main_content).strip()
-            
-            # Limit content length for LLM processing
-            if len(main_content) > 4000:
-                main_content = main_content[:4000] + "..."
-            
-            # Get title
-            title = ""
-            if soup.title:
-                title = soup.title.string.strip()
-            
-            # Use LLM to intelligently extract and summarize relevant content
-            llm_content = self._extract_with_llm(url, title, main_content)
-            
-            return {
-                'url': url,
-                'content': llm_content,
-                'title': title,
-                'success': True,
-                'method': 'LLM-based'
-            }
-            
+            if result and hasattr(result, 'text'):
+                content = result.text
+                title = getattr(result, 'title', '') or ''
+                
+                # Clean and process the content
+                if content:
+                    content = self._preprocess_content(content)
+                    # Limit content length for processing
+                    if len(content) > 4000:
+                        content = content[:4000] + "..."
+                
+                return {
+                    'url': url,
+                    'content': content or '',
+                    'title': title,
+                    'success': True,
+                    'method': 'ScrapeGraphAI'
+                }
+            else:
+                return {
+                        'url': url,
+                    'content': '',
+                    'title': '',
+                    'success': False,
+                    'error': 'No content extracted',
+                    'method': 'ScrapeGraphAI'
+                }
         except Exception as e:
-            print(f"❌ LLM scraping error for {url}: {e}")
+            print(f"❌ ScrapeGraphAI error for {url}: {e}")
             return {
                 'url': url,
                 'content': '',
                 'title': '',
                 'success': False,
                 'error': str(e),
-                'method': 'LLM-based'
+                'method': 'ScrapeGraphAI'
             }
-    
-    def _extract_with_llm(self, url: str, title: str, raw_content: str) -> str:
-        """Enhanced LLM-based content extraction with intelligent filtering"""
-        try:
-            # Enhanced content preprocessing
-            processed_content = self._preprocess_content(raw_content)
-            
-            if not processed_content:
-                return "No relevant content available for analysis."
-            
-            # Enhanced financial keyword filtering with context
-            financial_keywords = {
-                'financial_data': ['revenue', 'earnings', 'profit', 'loss', 'income', 'sales', 'growth', 'decline'],
-                'stock_data': ['stock', 'price', 'share', 'market', 'trading', 'volume', 'market cap'],
-                'business_metrics': ['quarter', 'year', 'annual', 'quarterly', 'performance', 'results'],
-                'monetary_values': ['million', 'billion', 'thousand', 'crore', 'lakh', 'dollar', 'rupee'],
-                'market_indicators': ['percent', 'percentage', 'increase', 'decrease', 'up', 'down', 'rise', 'fall'],
-                'business_events': ['announce', 'report', 'release', 'launch', 'acquisition', 'merger', 'partnership'],
-                'analyst_data': ['analyst', 'rating', 'target', 'recommendation', 'coverage', 'research']
-            }
-            
-            # Extract relevant sentences with enhanced scoring
-            relevant_sentences = []
-            sentences = processed_content.split('.')
-            
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if len(sentence) < 20:  # Skip very short sentences
-                    continue
-                
-                sentence_lower = sentence.lower()
-                score = 0
-                
-                # Score based on financial keyword categories
-                for category, keywords in financial_keywords.items():
-                    category_score = sum(1 for keyword in keywords if keyword in sentence_lower)
-                    if category_score > 0:
-                        score += category_score * 2  # Higher weight for financial terms
-                
-                # Bonus for company name mentions
-                if any(word in sentence_lower for word in ['tata', 'motors', 'company', 'ltd', 'limited']):
-                    score += 3
-                
-                # Bonus for recent dates (2024, 2025)
-                if any(year in sentence_lower for year in ['2024', '2025', '2023']):
-                    score += 2
-                
-                # Bonus for specific financial terms
-                if any(term in sentence_lower for term in ['quarter', 'earnings', 'revenue', 'profit', 'growth']):
-                    score += 2
-                
-                if score >= 2:  # Only include sentences with good relevance
-                    relevant_sentences.append((sentence, score))
-            
-            # Sort by relevance score and take top sentences
-            relevant_sentences.sort(key=lambda x: x[1], reverse=True)
-            
-            if relevant_sentences:
-                # Take top 8-10 most relevant sentences
-                top_sentences = [sentence for sentence, score in relevant_sentences[:10]]
-                return '. '.join(top_sentences)
-            else:
-                # If no highly relevant sentences, take first few meaningful ones
-                meaningful_sentences = []
-                for sentence in sentences[:8]:
-                    sentence = sentence.strip()
-                    if len(sentence) > 30 and not sentence.startswith('©') and not sentence.startswith('All rights'):
-                        meaningful_sentences.append(sentence)
-                
-                if meaningful_sentences:
-                    return '. '.join(meaningful_sentences)
-                else:
-                    return "Content extracted but no highly relevant financial information found."
-                    
-        except Exception as e:
-            print(f"❌ Enhanced LLM extraction error: {e}")
-            return raw_content[:1000] if raw_content else "Content extraction failed."
     
     def _preprocess_content(self, content: str) -> str:
         """Preprocess content to improve quality"""

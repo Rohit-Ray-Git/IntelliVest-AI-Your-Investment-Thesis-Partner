@@ -91,6 +91,14 @@ class AdvancedFallbackSystem:
         
     def setup_models(self):
         """Setup all available models with configurations"""
+        # Check API key availability
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        groq_api_key = os.getenv("GROQ_API_KEY")
+        
+        print(f"🔍 Checking API key availability...")
+        print(f"  - Google API Key: {'✅ Available' if google_api_key else '❌ Not configured'}")
+        print(f"  - Groq API Key: {'✅ Available' if groq_api_key else '❌ Not configured'}")
+        
         self.models = {
             ModelProvider.GEMINI_2_5_FLASH: ModelConfig(
                 provider=ModelProvider.GEMINI_2_5_FLASH,
@@ -101,7 +109,8 @@ class AdvancedFallbackSystem:
                 speed_rating=9.0,
                 quality_rating=9.5,
                 reliability=0.92,
-                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE, TaskType.GENERAL]
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE, TaskType.GENERAL],
+                is_available=bool(google_api_key)  # Only available if Google API key exists
             ),
             ModelProvider.GROQ_DEEPSEEK_R1: ModelConfig(
                 provider=ModelProvider.GROQ_DEEPSEEK_R1,
@@ -112,7 +121,8 @@ class AdvancedFallbackSystem:
                 speed_rating=9.2,
                 quality_rating=8.8,
                 reliability=0.94,
-                task_specialties=[TaskType.RESEARCH, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE]
+                task_specialties=[TaskType.RESEARCH, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE],
+                is_available=bool(groq_api_key)  # Only available if Groq API key exists
             ),
             ModelProvider.GROQ_LLAMA_3_3_70B: ModelConfig(
                 provider=ModelProvider.GROQ_LLAMA_3_3_70B,
@@ -123,7 +133,8 @@ class AdvancedFallbackSystem:
                 speed_rating=8.8,
                 quality_rating=9.0,
                 reliability=0.93,
-                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE, TaskType.GENERAL]
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.VALUATION, TaskType.THESIS, TaskType.CRITIQUE, TaskType.GENERAL],
+                is_available=bool(groq_api_key)  # Only available if Groq API key exists
             ),
             ModelProvider.GROQ_LLAMA_70B: ModelConfig(
                 provider=ModelProvider.GROQ_LLAMA_70B,
@@ -134,7 +145,8 @@ class AdvancedFallbackSystem:
                 speed_rating=9.0,
                 quality_rating=8.5,
                 reliability=0.95,
-                task_specialties=[TaskType.RESEARCH, TaskType.VALUATION, TaskType.THESIS]
+                task_specialties=[TaskType.RESEARCH, TaskType.VALUATION, TaskType.THESIS],
+                is_available=bool(groq_api_key)  # Only available if Groq API key exists
             ),
             ModelProvider.GROQ_LLAMA_8B: ModelConfig(
                 provider=ModelProvider.GROQ_LLAMA_8B,
@@ -145,18 +157,20 @@ class AdvancedFallbackSystem:
                 speed_rating=9.5,
                 quality_rating=7.0,
                 reliability=0.98,
-                task_specialties=[TaskType.SENTIMENT, TaskType.GENERAL]
+                task_specialties=[TaskType.SENTIMENT, TaskType.GENERAL],
+                is_available=bool(groq_api_key)  # Only available if Groq API key exists
             ),
             ModelProvider.GROQ_MIXTRAL: ModelConfig(
                 provider=ModelProvider.GROQ_MIXTRAL,
                 name="Groq Mixtral-8x7B",
-                max_tokens=32768,
+                max_tokens=8192,
                 temperature=0.7,
                 cost_per_1k_tokens=0.0003,
-                speed_rating=8.5,
+                speed_rating=9.3,
                 quality_rating=8.0,
-                reliability=0.92,
-                task_specialties=[TaskType.RESEARCH, TaskType.CRITIQUE]
+                reliability=0.96,
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.GENERAL],
+                is_available=bool(groq_api_key)  # Only available if Groq API key exists
             ),
             ModelProvider.GEMINI_2_0_FLASH: ModelConfig(
                 provider=ModelProvider.GEMINI_2_0_FLASH,
@@ -164,69 +178,85 @@ class AdvancedFallbackSystem:
                 max_tokens=8192,
                 temperature=0.7,
                 cost_per_1k_tokens=0.0004,
-                speed_rating=9.0,
+                speed_rating=8.5,
                 quality_rating=8.5,
+                reliability=0.90,
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.GENERAL],
+                is_available=bool(google_api_key)  # Only available if Google API key exists
+            ),
+            ModelProvider.GEMINI_1_5_FLASH: ModelConfig(
+                provider=ModelProvider.GEMINI_1_5_FLASH,
+                name="Gemini 1.5 Flash",
+                max_tokens=8192,
+                temperature=0.7,
+                cost_per_1k_tokens=0.0003,
+                speed_rating=8.0,
+                quality_rating=8.0,
                 reliability=0.88,
-                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT]
+                task_specialties=[TaskType.RESEARCH, TaskType.SENTIMENT, TaskType.GENERAL],
+                is_available=bool(google_api_key)  # Only available if Google API key exists
             )
         }
         
-        print("✅ Advanced fallback system initialized with 7 models")
-        print("🎯 Primary Model: Gemini 2.5 Flash")
-        print("🔄 Primary Fallback: Groq DeepSeek R1 Distill Llama-70B")
+        # Print available models
+        available_models = [name for name, config in self.models.items() if config.is_available]
+        print(f"✅ Available models: {len(available_models)}")
+        for model in available_models:
+            print(f"  - {self.models[model].name}")
+        
+        if not available_models:
+            print("⚠️ No models available! Please configure API keys in .env file")
+            print("   Required: GOOGLE_API_KEY for Gemini models")
+            print("   Required: GROQ_API_KEY for Groq models")
     
     def setup_fallback_chains(self):
         """Setup intelligent fallback chains for different task types"""
-        self.fallback_chains = {
-            TaskType.RESEARCH: [
-                ModelProvider.GEMINI_2_5_FLASH,      # Primary
-                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
-                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
-                ModelProvider.GROQ_LLAMA_70B,        # Tertiary fallback
-                ModelProvider.GROQ_MIXTRAL,          # Quaternary fallback
-                ModelProvider.GROQ_LLAMA_8B          # Final fallback
-            ],
-            TaskType.SENTIMENT: [
-                ModelProvider.GEMINI_2_5_FLASH,      # Primary
-                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
-                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
-                ModelProvider.GROQ_LLAMA_8B,         # Tertiary fallback
-                ModelProvider.GEMINI_2_0_FLASH       # Final fallback
-            ],
-            TaskType.VALUATION: [
-                ModelProvider.GEMINI_2_5_FLASH,      # Primary
-                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
-                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
-                ModelProvider.GROQ_LLAMA_70B,        # Tertiary fallback
-                ModelProvider.GROQ_MIXTRAL           # Final fallback
-            ],
-            TaskType.THESIS: [
-                ModelProvider.GEMINI_2_5_FLASH,      # Primary
-                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
-                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
-                ModelProvider.GROQ_LLAMA_70B,        # Tertiary fallback
-                ModelProvider.GROQ_MIXTRAL           # Final fallback
-            ],
-            TaskType.CRITIQUE: [
-                ModelProvider.GEMINI_2_5_FLASH,      # Primary
-                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
-                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
-                ModelProvider.GROQ_MIXTRAL,          # Tertiary fallback
-                ModelProvider.GROQ_LLAMA_70B         # Final fallback
-            ],
-            TaskType.GENERAL: [
-                ModelProvider.GEMINI_2_5_FLASH,      # Primary
-                ModelProvider.GROQ_DEEPSEEK_R1,      # Primary fallback
-                ModelProvider.GROQ_LLAMA_3_3_70B,    # Secondary fallback
-                ModelProvider.GROQ_LLAMA_8B,         # Tertiary fallback
-                ModelProvider.GROQ_LLAMA_70B,        # Quaternary fallback
-                ModelProvider.GEMINI_2_0_FLASH,      # Quinary fallback
-                ModelProvider.GROQ_MIXTRAL           # Final fallback
-            ]
-        }
+        # Get available models
+        available_models = [provider for provider, config in self.models.items() if config.is_available]
         
+        if not available_models:
+            print("⚠️ No models available for fallback chains!")
+            self.fallback_chains = {task_type: [] for task_type in TaskType}
+            return
+        
+        # Create fallback chains using only available models
+        self.fallback_chains = {}
+        
+        for task_type in TaskType:
+            # Filter models that are good for this task type
+            suitable_models = [
+                provider for provider in available_models
+                if task_type in self.models[provider].task_specialties
+            ]
+            
+            # If no specific models for this task, use all available models
+            if not suitable_models:
+                suitable_models = available_models.copy()
+            
+            # Sort by quality rating for this task
+            suitable_models.sort(
+                key=lambda p: self.models[p].quality_rating + self.models[p].reliability,
+                reverse=True
+            )
+            
+            self.fallback_chains[task_type] = suitable_models
+        
+        # Print the configured chains
         print("✅ Fallback chains configured for all task types")
-        print("🔄 New Fallback Chain: Gemini 2.5 Flash → DeepSeek R1 → Llama 3.3-70B → Others")
+        for task_type, chain in self.fallback_chains.items():
+            if chain:
+                primary_model = self.models[chain[0]].name
+                print(f"  - {task_type.value}: {primary_model} → {len(chain)-1} fallbacks")
+            else:
+                print(f"  - {task_type.value}: No available models")
+        
+        # Show the primary chain
+        if available_models:
+            primary_model = self.models[available_models[0]].name
+            print(f"🎯 Primary Model: {primary_model}")
+            if len(available_models) > 1:
+                fallback_model = self.models[available_models[1]].name
+                print(f"🔄 Primary Fallback: {fallback_model}")
     
     def get_llm_instance(self, provider: ModelProvider) -> Optional[ChatOpenAI]:
         """Get LLM instance for a specific provider"""
@@ -234,8 +264,8 @@ class AdvancedFallbackSystem:
             if provider.value.startswith("groq/"):
                 return ChatOpenAI(
                     model=provider.value,
-                    api_key=os.getenv("OPENAI_API_KEY"),
-                    base_url=os.getenv("OPENAI_API_BASE"),
+                    api_key=os.getenv("GROQ_API_KEY"),
+                    base_url="https://api.groq.com/openai/v1",  # Groq's OpenAI-compatible endpoint
                     temperature=self.models[provider].temperature,
                     max_tokens=self.models[provider].max_tokens
                 )
@@ -322,6 +352,22 @@ class AdvancedFallbackSystem:
         
         # Get fallback chain for task type
         fallback_chain = self.fallback_chains[task_type]
+        
+        # Check if any models are available
+        if not fallback_chain:
+            error_msg = "No LLM models available. Please configure API keys in .env file"
+            errors.append(error_msg)
+            print(f"❌ {error_msg}")
+            return FallbackResult(
+                content="No LLM models available. Please configure API keys in .env file",
+                model_used="None",
+                provider=None,
+                response_time=time.time() - start_time,
+                cost_estimate=0.0,
+                confidence_score=0.0,
+                fallback_count=0,
+                errors=errors
+            )
         
         for attempt in range(min(len(fallback_chain), max_fallbacks + 1)):
             try:
