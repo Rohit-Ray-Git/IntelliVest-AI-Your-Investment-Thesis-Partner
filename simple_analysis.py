@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """
-Simple Investment Analysis Script
-This script provides core investment analysis without web crawling dependencies.
+🚀 IntelliVest AI - Simple Investment Analysis
+============================================================
+💡 This version focuses on core analysis without web crawling
+💡 Enter a stock symbol or company name to analyze
+============================================================
 """
 
-import asyncio
-import os
 import sys
+import asyncio
+
+# Fix Windows async issues
+if sys.platform.startswith('win'):
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+import os
+import json
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
