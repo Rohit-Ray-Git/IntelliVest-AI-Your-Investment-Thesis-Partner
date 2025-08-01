@@ -1,6 +1,6 @@
 """
 🔍 Critique Agent - Investment Thesis Critique & Validation
-=========================================================
+==========================================================
 
 This agent handles investment thesis critique and validation including:
 - Thesis validation and verification
@@ -17,11 +17,6 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# Import LangChain components
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
 
 # Import our custom tools
 from tools.investment_tools import CritiqueTool

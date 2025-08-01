@@ -10,6 +10,7 @@ from agents.sentiment_agent import SentimentAgent
 from agents.valuation_agent import ValuationAgent
 from agents.thesis_agent import ThesisAgent
 from agents.critique_agent import CritiqueAgent
+from agents.thesis_rewrite_agent import ThesisRewriteAgent
 from utils.search import search_company_news
 
 app = FastAPI(title="IntelliVest AI API", version="1.0.0")
@@ -17,7 +18,7 @@ app = FastAPI(title="IntelliVest AI API", version="1.0.0")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],  # In production, specify your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +32,7 @@ class ThesisResponse(BaseModel):
     scraped_urls: list
     thesis: str
     critique: str
+    revised_thesis: str
     status: str
     progress_log: list
 
@@ -88,6 +90,11 @@ async def generate_thesis(request: CompanyRequest):
         # Extract critique content
         critique = critique_data.get("thesis_validation", "Critique generation failed")
         
+        # Step 7: Rewrite Thesis Based on Critique
+        progress_log.append("✏️ Rewriting thesis based on critique feedback...")
+        rewriter_agent = ThesisRewriteAgent()
+        revised_thesis = await rewriter_agent.revise_thesis(thesis, critique, company)
+        
         progress_log.append("🎉 Analysis complete!")
         
         return ThesisResponse(
@@ -95,6 +102,7 @@ async def generate_thesis(request: CompanyRequest):
             scraped_urls=scraped_urls,
             thesis=thesis,
             critique=critique,
+            revised_thesis=revised_thesis,
             status="success",
             progress_log=progress_log
         )

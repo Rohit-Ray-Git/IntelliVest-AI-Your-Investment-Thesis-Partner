@@ -18,11 +18,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import LangChain components
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
-
 # Import our custom tools
 from tools.investment_tools import ValuationTool, FinancialDataTool
 from tools.dynamic_search_tools import DynamicWebSearchTool

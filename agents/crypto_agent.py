@@ -1,13 +1,13 @@
 """
-🪙 Crypto Agent - Cryptocurrency Analysis
-=======================================
+🪙 Crypto Agent - Cryptocurrency Analysis & Research
+===================================================
 
 This agent handles comprehensive cryptocurrency analysis including:
-- Cryptocurrency market analysis
-- Blockchain technology assessment
-- Tokenomics analysis
-- DeFi and NFT market analysis
-- Regulatory and adoption trends
+- Cryptocurrency price and market cap analysis
+- Trading volume and institutional adoption research
+- Blockchain technology development tracking
+- Market sentiment and news analysis
+- Institutional investment data gathering
 """
 
 import asyncio
@@ -18,13 +18,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import LangChain components
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
-
 # Import our custom tools
-from tools.dynamic_search_tools import DynamicWebSearchTool, CryptoDataTool
+from tools.dynamic_search_tools import CryptoDataTool
 from llm.advanced_fallback_system import AdvancedFallbackSystem, TaskType
 
 class CryptoAgent:

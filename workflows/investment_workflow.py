@@ -47,6 +47,7 @@ class InvestmentState(TypedDict):
     valuation_data: Dict[str, Any]
     investment_thesis: Dict[str, Any]
     critique: Dict[str, Any]
+    revised_thesis: Dict[str, Any]
     current_step: str
     errors: List[str]
     tools_used: List[str]
@@ -372,8 +373,56 @@ class InvestmentWorkflow:
         
         return state
     
+    def thesis_rewrite_agent(self, state: InvestmentState) -> InvestmentState:
+        """Thesis rewrite agent node"""
+        try:
+            company_name = state["company_name"]
+            thesis = state.get("investment_thesis", {}).get("thesis", "")
+            critique = state.get("critique", {}).get("critique", "")
+            
+            # Create thesis rewrite prompt
+            rewrite_prompt = f"""
+            You are an Investment Thesis Rewriter. Rewrite the investment thesis for {company_name} based on critique feedback:
+            
+            Original Thesis:
+            {thesis}
+            
+            Critique Feedback:
+            {critique}
+            
+            Rewrite the thesis addressing:
+            1. All identified issues and weaknesses
+            2. Missing components and incomplete analysis
+            3. Bias issues and alternative viewpoints
+            4. Structural and organizational improvements
+            5. Enhanced data and evidence
+            
+            Provide a significantly improved, professional investment thesis that addresses all critique feedback.
+            """
+            
+            # Get LLM response
+            messages = [HumanMessage(content=rewrite_prompt)]
+            response = self.primary_llm.invoke(messages)
+            
+            # Update state
+            state["revised_thesis"] = {
+                "revised_thesis": response.content,
+                "company_name": company_name,
+                "timestamp": asyncio.get_event_loop().time()
+            }
+            state["current_step"] = "rewrite_completed"
+            state["tools_used"].append("thesis_rewrite")
+            
+            print(f"✅ Thesis rewrite completed for {company_name}")
+            
+        except Exception as e:
+            state["errors"].append(f"Thesis rewrite error: {str(e)}")
+            print(f"❌ Thesis rewrite error: {e}")
+        
+        return state
+    
     def decision_router(self, state: InvestmentState) -> str:
-        """Route to next step based on current state"""
+        """Route to next step based on current step"""
         current_step = state.get("current_step", "start")
         
         # Define the workflow sequence
@@ -383,7 +432,8 @@ class InvestmentWorkflow:
             "sentiment_completed",
             "valuation_completed",
             "thesis_completed",
-            "critique_completed"
+            "critique_completed",
+            "rewrite_completed"
         ]
         
         try:
@@ -408,6 +458,7 @@ class InvestmentWorkflow:
         workflow.add_node("valuation", self.valuation_agent)
         workflow.add_node("thesis", self.thesis_writer_agent)
         workflow.add_node("critique", self.critic_agent)
+        workflow.add_node("rewrite", self.thesis_rewrite_agent)
         
         # Add conditional edges
         workflow.add_conditional_edges(
@@ -450,6 +501,15 @@ class InvestmentWorkflow:
             "critique",
             self.decision_router,
             {
+                "rewrite": "rewrite",
+                "end": END
+            }
+        )
+        
+        workflow.add_conditional_edges(
+            "rewrite",
+            self.decision_router,
+            {
                 "end": END
             }
         )
@@ -484,6 +544,7 @@ class InvestmentWorkflow:
                 valuation_data={},
                 investment_thesis={},
                 critique={},
+                revised_thesis={},
                 current_step="start",
                 errors=[],
                 tools_used=[],

@@ -1,13 +1,12 @@
 """
-🔍 Research Agent - Comprehensive Company Research
-================================================
+📚 Research Agent - Comprehensive Financial Research & Analysis
+=============================================================
 
-This agent handles comprehensive company research including:
-- Dynamic web search for latest news and data
-- Company information gathering
-- Business model analysis
-- Market position assessment
-- Competitive landscape analysis
+This agent conducts comprehensive financial research including:
+- Company overview and business model analysis
+- Financial performance and ratio analysis
+- Market position and competitive analysis
+- Risk assessment and industry trends
 """
 
 import asyncio
@@ -17,11 +16,6 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# Import LangChain components
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
 
 # Import our custom tools
 from tools.investment_tools import WebCrawlerTool, FinancialDataTool

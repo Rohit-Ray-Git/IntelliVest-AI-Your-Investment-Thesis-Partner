@@ -1,13 +1,12 @@
 """
-🧠 Sentiment Agent - Market Sentiment Analysis
-=============================================
+😊 Sentiment Agent - Market Sentiment Analysis & Interpretation
+==============================================================
 
-This agent handles market sentiment analysis including:
-- News sentiment analysis
-- Social media sentiment tracking
-- Analyst ratings and recommendations
-- Institutional sentiment patterns
-- Market mood assessment
+This agent analyzes market sentiment including:
+- News sentiment analysis and interpretation
+- Social media sentiment trends
+- Analyst ratings and price targets
+- Market positioning and investor sentiment
 """
 
 import asyncio
@@ -17,11 +16,6 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# Import LangChain components
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
 
 # Import our custom tools
 from tools.investment_tools import SentimentAnalysisTool

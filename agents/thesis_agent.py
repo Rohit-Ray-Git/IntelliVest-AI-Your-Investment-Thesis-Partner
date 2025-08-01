@@ -1,13 +1,12 @@
 """
-📝 Thesis Agent - Investment Thesis Generation
-============================================
+📝 Thesis Agent - Investment Thesis Generation & Development
+===========================================================
 
-This agent handles investment thesis generation including:
-- Comprehensive investment recommendation
-- Value proposition analysis
-- Risk-reward assessment
-- Investment timeline and strategy
-- Professional thesis formatting
+This agent generates comprehensive investment theses including:
+- Investment recommendation and rationale
+- Value proposition and investment case
+- Risk-reward analysis and timeline
+- Exit strategy and key catalysts
 """
 
 import asyncio
@@ -17,11 +16,6 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-
-# Import LangChain components
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.schema import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
 
 # Import our custom tools
 from tools.investment_tools import ThesisGenerationTool
