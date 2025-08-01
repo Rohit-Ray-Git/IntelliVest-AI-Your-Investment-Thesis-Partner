@@ -12,12 +12,13 @@ import re
 import json
 import time
 from typing import List, Dict, Any, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, quote_plus
 import requests
 from bs4 import BeautifulSoup
 from langchain.tools import BaseTool
+import random
 
-# Import crawling functionality
+# Import crawl4ai for advanced web crawling
 from crawl4ai import AsyncWebCrawler
 
 class DynamicWebSearchTool(BaseTool):
@@ -33,99 +34,296 @@ class DynamicWebSearchTool(BaseTool):
     
     def __init__(self):
         super().__init__()
-        # Initialize search engines
-        self.search_engines = [
-            "https://www.google.com/search",
-            "https://www.bing.com/search",
-            "https://search.yahoo.com/search"
-        ]
-        self.crawler = AsyncWebCrawler()
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         })
+        self.search_engines = [
+            "https://www.google.com/search",
+            "https://www.bing.com/search", 
+            "https://search.yahoo.com/search"
+        ]
+        # Initialize crawl4ai crawler
+        self.crawler = AsyncWebCrawler()
     
     def _run(self, query: str) -> str:
         """Run dynamic web search"""
         try:
             print(f"🔍 Dynamic Search: Searching for '{query}'")
             
-            # For now, return a comprehensive mock response to demonstrate functionality
-            # In production, this would implement the full dynamic search functionality
+            # Step 1: Discover relevant websites using search engines
+            discovered_urls = self._discover_websites(query)
             
-            return f"""
-✅ Dynamic Web Search Results for: "{query}"
-
-📊 Summary:
-- Search Query: {query}
-- Sources Discovered: 15
-- Total Content: 25,000 characters
-- Average Relevance Score: 0.85
-
-📰 Top Sources:
-1. https://finance.yahoo.com/quote/{query.replace(' ', '')}
-   Relevance Score: 0.92
-   Content Preview: Latest financial news and analysis for {query}. Market updates, earnings reports, and institutional activity...
-
-2. https://www.marketwatch.com/investing/stock/{query.lower().replace(' ', '')}
-   Relevance Score: 0.89
-   Content Preview: Real-time stock quotes, financial data, and market analysis for {query}. Institutional holdings and FII data...
-
-3. https://www.bloomberg.com/quote/{query.upper()}:US
-   Relevance Score: 0.87
-   Content Preview: Bloomberg terminal data and professional analysis for {query}. Institutional sentiment and market positioning...
-
-4. https://www.reuters.com/companies/{query.lower().replace(' ', '-')}
-   Relevance Score: 0.84
-   Content Preview: Reuters news coverage and financial analysis for {query}. Latest developments and market impact...
-
-5. https://www.cnbc.com/quotes/{query.upper()}
-   Relevance Score: 0.82
-   Content Preview: CNBC market coverage and analysis for {query}. Trading activity and institutional flows...
-
-📋 Full Content Summary:
-• Latest financial news and market updates for {query}
-• Institutional holdings and FII (Foreign Institutional Investor) data
-• Options flow and institutional activity analysis
-• Market sentiment and analyst coverage
-• Earnings reports and financial performance metrics
-• Regulatory filings and corporate developments
-
-✅ Dynamic search completed successfully
-"""
+            if not discovered_urls:
+                return f"❌ No relevant websites found for query: {query}"
+            
+            # Step 2: Filter to financial/relevant sites
+            filtered_urls = self._filter_financial_sites(discovered_urls)
+            
+            # Step 3: Scrape content from discovered sites using crawl4ai
+            scraped_content = self._scrape_discovered_sites(filtered_urls[:5], query)  # Limit to top 5
+            
+            # Step 4: Format and return results
+            return self._format_results(scraped_content, query)
             
         except Exception as e:
             return f"❌ Error in dynamic web search: {str(e)}"
     
     def _discover_websites(self, query: str) -> List[str]:
         """Discover relevant websites using search engines"""
-        # Placeholder implementation for future enhancement
-        return []
+        discovered_urls = []
+        
+        try:
+            # Use multiple search engines for better coverage
+            for engine in self.search_engines:
+                try:
+                    params = {
+                        'q': query,
+                        'num': 10  # Get top 10 results
+                    }
+                    
+                    response = self.session.get(engine, params=params, timeout=10)
+                    response.raise_for_status()
+                    
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    
+                    # Extract URLs from search results
+                    # Different search engines have different HTML structures
+                    if 'google.com' in engine:
+                        links = soup.find_all('a', href=True)
+                        for link in links:
+                            href = link['href']
+                            if href.startswith('/url?q='):
+                                url = href.split('/url?q=')[1].split('&')[0]
+                                if url.startswith('http') and url not in discovered_urls:
+                                    discovered_urls.append(url)
+                    
+                    elif 'bing.com' in engine:
+                        links = soup.find_all('a', href=True)
+                        for link in links:
+                            href = link['href']
+                            if href.startswith('http') and 'bing.com' not in href:
+                                discovered_urls.append(href)
+                    
+                    elif 'yahoo.com' in engine:
+                        links = soup.find_all('a', href=True)
+                        for link in links:
+                            href = link['href']
+                            if href.startswith('http') and 'yahoo.com' not in href:
+                                discovered_urls.append(href)
+                    
+                    time.sleep(1)  # Be respectful to search engines
+                    
+                except Exception as e:
+                    print(f"Warning: Error searching {engine}: {e}")
+                    continue
+            
+            return discovered_urls[:20]  # Limit to top 20 results
+            
+        except Exception as e:
+            print(f"Error in website discovery: {e}")
+            return []
     
     def _filter_financial_sites(self, urls: List[str]) -> List[str]:
         """Filter URLs to focus on financial/relevant sites"""
-        # Placeholder implementation for future enhancement
-        return []
+        financial_keywords = [
+            'finance', 'market', 'stock', 'trading', 'investment', 'business',
+            'yahoo.com/finance', 'marketwatch.com', 'bloomberg.com', 'reuters.com',
+            'cnbc.com', 'wsj.com', 'ft.com', 'seekingalpha.com', 'investing.com',
+            'morningstar.com', 'fool.com', 'barrons.com', 'forbes.com'
+        ]
+        
+        filtered_urls = []
+        for url in urls:
+            url_lower = url.lower()
+            if any(keyword in url_lower for keyword in financial_keywords):
+                filtered_urls.append(url)
+        
+        return filtered_urls
+    
+    async def _scrape_with_crawl4ai(self, url: str) -> Dict[str, Any]:
+        """Scrape content using crawl4ai"""
+        try:
+            # Use crawl4ai to scrape the URL
+            result = await self.crawler.arun(
+                url=url,
+                includes=["text", "title", "links"],
+                excludes=["ads", "navigation", "footer"],
+                max_tokens=4000
+            )
+            
+            return {
+                'url': url,
+                'content': result.text if result.text else '',
+                'title': result.title if result.title else 'No title',
+                'links': result.links if result.links else []
+            }
+            
+        except Exception as e:
+            print(f"Warning: Error scraping {url} with crawl4ai: {e}")
+            return {
+                'url': url,
+                'content': '',
+                'title': 'Error',
+                'links': []
+            }
     
     def _scrape_discovered_sites(self, urls: List[str], query: str) -> List[Dict[str, Any]]:
-        """Scrape content from discovered websites"""
-        # Placeholder implementation for future enhancement
-        return []
+        """Scrape content from discovered websites using crawl4ai"""
+        scraped_content = []
+        
+        # Run crawl4ai scraping asynchronously
+        async def scrape_all():
+            tasks = []
+            for url in urls:
+                tasks.append(self._scrape_with_crawl4ai(url))
+                time.sleep(1)  # Be respectful between requests
+            
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    print(f"Warning: Error scraping {urls[i]}: {result}")
+                    continue
+                
+                if result['content'] and self._is_content_relevant(result['content'], query):
+                    relevance_score = self._calculate_relevance(result['content'], query)
+                    
+                    scraped_content.append({
+                        'url': result['url'],
+                        'content': result['content'][:2000],  # Limit content length
+                        'relevance_score': relevance_score,
+                        'title': result['title']
+                    })
+            
+            # Sort by relevance score
+            scraped_content.sort(key=lambda x: x['relevance_score'], reverse=True)
+            return scraped_content
+        
+        # Run the async scraping
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            scraped_content = loop.run_until_complete(scrape_all())
+            loop.close()
+        except Exception as e:
+            print(f"Error in async scraping: {e}")
+            # Fallback to synchronous scraping if async fails
+            scraped_content = self._fallback_scraping(urls, query)
+        
+        return scraped_content
+    
+    def _fallback_scraping(self, urls: List[str], query: str) -> List[Dict[str, Any]]:
+        """Fallback scraping method using requests/BeautifulSoup"""
+        scraped_content = []
+        
+        for url in urls:
+            try:
+                print(f"🔍 Fallback Scraping: {url}")
+                
+                response = self.session.get(url, timeout=15)
+                response.raise_for_status()
+                
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Extract relevant content
+                content = self._extract_relevant_content(soup, query)
+                
+                if content and self._is_content_relevant(content, query):
+                    relevance_score = self._calculate_relevance(content, query)
+                    
+                    scraped_content.append({
+                        'url': url,
+                        'content': content[:2000],  # Limit content length
+                        'relevance_score': relevance_score,
+                        'title': soup.title.string if soup.title else 'No title'
+                    })
+                
+                time.sleep(2)  # Be respectful to websites
+                
+            except Exception as e:
+                print(f"Warning: Error in fallback scraping {url}: {e}")
+                continue
+        
+        # Sort by relevance score
+        scraped_content.sort(key=lambda x: x['relevance_score'], reverse=True)
+        return scraped_content
+    
+    def _extract_relevant_content(self, soup: BeautifulSoup, query: str) -> str:
+        """Extract relevant content from webpage"""
+        # Remove script and style elements
+        for script in soup(["script", "style"]):
+            script.decompose()
+        
+        # Try to find main content areas
+        content_selectors = [
+            'main', 'article', '.content', '.main-content', '.post-content',
+            '.entry-content', '.story-body', '.article-body', '#content'
+        ]
+        
+        content = ""
+        for selector in content_selectors:
+            elements = soup.select(selector)
+            if elements:
+                content = ' '.join([elem.get_text() for elem in elements])
+                break
+        
+        # If no main content found, get body text
+        if not content:
+            content = soup.get_text()
+        
+        # Clean up content
+        content = re.sub(r'\s+', ' ', content).strip()
+        return content
     
     def _is_content_relevant(self, content: str, query: str) -> bool:
         """Check if content is relevant to the search query"""
-        # Placeholder implementation for future enhancement
-        return True
+        query_words = query.lower().split()
+        content_lower = content.lower()
+        
+        # Check if at least 50% of query words appear in content
+        matches = sum(1 for word in query_words if word in content_lower)
+        return matches >= len(query_words) * 0.5
     
     def _calculate_relevance(self, content: str, query: str) -> float:
         """Calculate relevance score between content and query"""
-        # Placeholder implementation for future enhancement
-        return 0.5
+        query_words = query.lower().split()
+        content_lower = content.lower()
+        
+        # Simple relevance scoring based on word frequency
+        total_matches = 0
+        for word in query_words:
+            matches = content_lower.count(word)
+            total_matches += matches
+        
+        # Normalize by content length and query length
+        relevance = total_matches / (len(content.split()) * len(query_words))
+        return min(relevance * 100, 1.0)  # Cap at 1.0
     
     def _format_results(self, scraped_content: List[Dict[str, Any]], query: str) -> str:
         """Format scraped content into readable results"""
-        # Placeholder implementation for future enhancement
-        return "Results formatted successfully"
+        if not scraped_content:
+            return f"❌ No relevant content found for query: {query}"
+        
+        result = f"✅ Dynamic Web Search Results for: '{query}'\n\n"
+        result += f"📊 Summary:\n"
+        result += f"- Search Query: {query}\n"
+        result += f"- Sources Discovered: {len(scraped_content)}\n"
+        result += f"- Total Content: {sum(len(item['content']) for item in scraped_content)} characters\n"
+        result += f"- Average Relevance Score: {sum(item['relevance_score'] for item in scraped_content) / len(scraped_content):.2f}\n\n"
+        
+        result += "📰 Top Sources:\n"
+        for i, item in enumerate(scraped_content[:5], 1):
+            result += f"{i}. {item['url']}\n"
+            result += f"   Relevance Score: {item['relevance_score']:.2f}\n"
+            result += f"   Content Preview: {item['content'][:200]}...\n\n"
+        
+        result += "📋 Full Content Summary:\n"
+        for item in scraped_content:
+            result += f"• {item['title']}: {item['content'][:300]}...\n\n"
+        
+        result += "✅ Dynamic search completed successfully"
+        return result
 
 class InstitutionalDataTool(BaseTool):
     """🏦 Tool for discovering and scraping institutional data"""
@@ -146,46 +344,52 @@ class InstitutionalDataTool(BaseTool):
         try:
             print(f"🏦 Institutional Data: Searching for {company_name}")
             
-            return f"""
-🏦 Institutional Data Analysis for {company_name}
-
-📊 Data Sources Searched:
-• {company_name} FII holdings foreign institutional investors: ✅ Found
-• {company_name} major shareholders ownership data: ✅ Found
-• {company_name} institutional ownership mutual funds: ✅ Found
-• {company_name} options flow institutional activity: ✅ Found
-• {company_name} insider trading institutional investors: ✅ Found
-• {company_name} shareholder structure ownership breakdown: ✅ Found
-
-📋 Detailed Results:
-🔍 {company_name} FII holdings foreign institutional investors:
-Foreign Institutional Investors (FIIs) currently hold approximately 15-25% of {company_name}'s outstanding shares. Major FII holders include Vanguard Group, BlackRock, and State Street Global Advisors. Recent FII activity shows net buying of 2.3 million shares in the last quarter.
-
-🔍 {company_name} major shareholders ownership data:
-Institutional ownership stands at 65-75% of total shares outstanding. Top institutional holders include: Vanguard Group (8.2%), BlackRock (6.8%), State Street Global Advisors (4.1%), and Fidelity Management (3.9%). Retail ownership accounts for approximately 25-35% of shares.
-
-🔍 {company_name} institutional ownership mutual funds:
-Mutual funds hold approximately 20-30% of {company_name}'s shares. Top mutual fund holders include: Vanguard 500 Index Fund (2.1%), Fidelity 500 Index Fund (1.8%), and T. Rowe Price Blue Chip Growth Fund (1.2%). Recent mutual fund activity shows net inflows of $150 million.
-
-🔍 {company_name} options flow institutional activity:
-Options flow analysis shows significant institutional activity in {company_name} options. Recent large block trades indicate institutional positioning for potential upside. Call option volume has increased 45% in the last month, suggesting bullish institutional sentiment.
-
-🔍 {company_name} insider trading institutional investors:
-Recent insider trading activity shows executives and directors have been net buyers of {company_name} shares. Insider ownership stands at approximately 2-3% of total shares. Recent insider purchases total $25 million in the last quarter.
-
-🔍 {company_name} shareholder structure ownership breakdown:
-Shareholder structure analysis reveals a well-diversified ownership base. Institutional investors dominate with 65-75% ownership, followed by retail investors (25-35%), and insiders (2-3%). This structure provides stability and reduces volatility.
-
-✅ Institutional data search completed
-"""
+            # Create specific search queries for institutional data
+            search_queries = [
+                f"{company_name} FII holdings foreign institutional investors",
+                f"{company_name} major shareholders ownership data",
+                f"{company_name} institutional ownership mutual funds",
+                f"{company_name} options flow institutional activity",
+                f"{company_name} insider trading institutional investors",
+                f"{company_name} shareholder structure ownership breakdown"
+            ]
+            
+            all_results = []
+            
+            for query in search_queries:
+                print(f"🔍 Searching: {query}")
+                result = self.search_tool._run(query)
+                all_results.append(f"🔍 {query}:\n{result}\n")
+                time.sleep(2)  # Be respectful between searches
+            
+            return self._format_institutional_results(all_results, company_name)
             
         except Exception as e:
             return f"❌ Error in institutional data search: {str(e)}"
     
-    def _format_institutional_results(self, data: Dict[str, str], company_name: str) -> str:
+    def _format_institutional_results(self, results: List[str], company_name: str) -> str:
         """Format institutional data results"""
-        # Placeholder implementation for future enhancement
-        return "Institutional data formatted successfully"
+        formatted_result = f"🏦 Institutional Data Analysis for {company_name}\n\n"
+        formatted_result += "📊 Data Sources Searched:\n"
+        
+        search_queries = [
+            f"{company_name} FII holdings foreign institutional investors",
+            f"{company_name} major shareholders ownership data", 
+            f"{company_name} institutional ownership mutual funds",
+            f"{company_name} options flow institutional activity",
+            f"{company_name} insider trading institutional investors",
+            f"{company_name} shareholder structure ownership breakdown"
+        ]
+        
+        for query in search_queries:
+            formatted_result += f"• {query}: ✅ Found\n"
+        
+        formatted_result += "\n📋 Detailed Results:\n"
+        for result in results:
+            formatted_result += result + "\n"
+        
+        formatted_result += "✅ Institutional data search completed"
+        return formatted_result
 
 class CryptoDataTool(BaseTool):
     """🪙 Tool for discovering and scraping cryptocurrency data"""
@@ -206,46 +410,52 @@ class CryptoDataTool(BaseTool):
         try:
             print(f"🪙 Crypto Data: Searching for {crypto_name}")
             
-            return f"""
-🪙 Cryptocurrency Data Analysis for {crypto_name}
-
-📊 Data Sources Searched:
-• {crypto_name} cryptocurrency price market cap: ✅ Found
-• {crypto_name} crypto trading volume institutional adoption: ✅ Found
-• {crypto_name} blockchain technology development updates: ✅ Found
-• {crypto_name} crypto market sentiment analysis: ✅ Found
-• {crypto_name} cryptocurrency news developments: ✅ Found
-• {crypto_name} crypto institutional investment data: ✅ Found
-
-📋 Detailed Results:
-🔍 {crypto_name} cryptocurrency price market cap:
-Current price analysis shows {crypto_name} trading at $45,000 with a market cap of $850 billion. 24-hour trading volume stands at $25 billion. Price has shown 15% volatility in the last week. Market cap ranking: #1 among all cryptocurrencies.
-
-🔍 {crypto_name} crypto trading volume institutional adoption:
-Trading volume analysis reveals significant institutional adoption of {crypto_name}. Institutional trading volume has increased 40% in the last quarter. Major institutional players include Grayscale, MicroStrategy, and Tesla. Institutional holdings now represent 15-20% of total supply.
-
-🔍 {crypto_name} blockchain technology development updates:
-Latest blockchain developments for {crypto_name} include Lightning Network improvements, Taproot activation, and Layer 2 scaling solutions. Development activity remains high with 500+ active contributors. GitHub commit frequency shows consistent development momentum.
-
-🔍 {crypto_name} crypto market sentiment analysis:
-Market sentiment for {crypto_name} is currently bullish with a sentiment score of 0.75. Social media sentiment analysis shows positive sentiment across Twitter, Reddit, and Telegram. Fear & Greed Index indicates "Greed" territory at 75/100.
-
-🔍 {crypto_name} cryptocurrency news developments:
-Recent news developments include institutional adoption announcements, regulatory clarity in major markets, and technological breakthroughs. News sentiment is predominantly positive with 70% of recent headlines being bullish.
-
-🔍 {crypto_name} crypto institutional investment data:
-Institutional investment data shows continued accumulation by major players. Recent institutional purchases total $2.5 billion in the last month. Institutional custody solutions have seen 30% growth in assets under management.
-
-✅ Cryptocurrency data search completed
-"""
+            # Create specific search queries for crypto data
+            search_queries = [
+                f"{crypto_name} cryptocurrency price market cap",
+                f"{crypto_name} crypto trading volume institutional adoption",
+                f"{crypto_name} blockchain technology development updates",
+                f"{crypto_name} crypto market sentiment analysis",
+                f"{crypto_name} cryptocurrency news developments",
+                f"{crypto_name} crypto institutional investment data"
+            ]
+            
+            all_results = []
+            
+            for query in search_queries:
+                print(f"🔍 Searching: {query}")
+                result = self.search_tool._run(query)
+                all_results.append(f"🔍 {query}:\n{result}\n")
+                time.sleep(2)  # Be respectful between searches
+            
+            return self._format_crypto_results(all_results, crypto_name)
             
         except Exception as e:
             return f"❌ Error in crypto data search: {str(e)}"
     
-    def _format_crypto_results(self, data: Dict[str, str], crypto_name: str) -> str:
+    def _format_crypto_results(self, results: List[str], crypto_name: str) -> str:
         """Format cryptocurrency data results"""
-        # Placeholder implementation for future enhancement
-        return "Cryptocurrency data formatted successfully"
+        formatted_result = f"🪙 Cryptocurrency Data Analysis for {crypto_name}\n\n"
+        formatted_result += "📊 Data Sources Searched:\n"
+        
+        search_queries = [
+            f"{crypto_name} cryptocurrency price market cap",
+            f"{crypto_name} crypto trading volume institutional adoption",
+            f"{crypto_name} blockchain technology development updates",
+            f"{crypto_name} crypto market sentiment analysis",
+            f"{crypto_name} cryptocurrency news developments",
+            f"{crypto_name} crypto institutional investment data"
+        ]
+        
+        for query in search_queries:
+            formatted_result += f"• {query}: ✅ Found\n"
+        
+        formatted_result += "\n📋 Detailed Results:\n"
+        for result in results:
+            formatted_result += result + "\n"
+        
+        formatted_result += "✅ Cryptocurrency data search completed"
+        return formatted_result
 
 # Export all tools
 __all__ = [

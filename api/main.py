@@ -5,12 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
 import uvicorn
-from agents.crawler_agent import CrawlerAgent
+from agents.research_agent import ResearchAgent
 from agents.sentiment_agent import SentimentAgent
 from agents.valuation_agent import ValuationAgent
-from agents.thesis_writer_agent import ThesisWriterAgent
-from agents.critic_agent import CriticAgent
-from agents.thesis_rewrite_agent import ThesisRewriteAgent
+from agents.thesis_agent import ThesisAgent
+from agents.critique_agent import CritiqueAgent
 from utils.search import search_company_news
 
 app = FastAPI(title="IntelliVest AI API", version="1.0.0")
@@ -32,7 +31,6 @@ class ThesisResponse(BaseModel):
     scraped_urls: list
     thesis: str
     critique: str
-    revised_thesis: str
     status: str
     progress_log: list
 
@@ -55,62 +53,40 @@ async def generate_thesis(request: CompanyRequest):
         
         progress_log.append(f"✅ Found {len(urls)} URLs to analyze")
         
-        # Step 2: Crawl URLs
-        progress_log.append("🌐 Starting to crawl websites...")
-        crawler = CrawlerAgent()
-        documents = await crawler.crawl_multiple(urls)
+        # Step 2: Research Analysis
+        progress_log.append("📚 Conducting comprehensive research...")
+        research_agent = ResearchAgent()
+        research_data = await research_agent.conduct_research(company)
         
-        # Track successful scrapes
-        scraped_urls = []
-        valid_documents = []
-        failed_urls = []
+        # Track successful research
+        scraped_urls = research_data.get("data_sources", [])
+        progress_log.append(f"📊 Research completed with {len(scraped_urls)} sources")
         
-        for i, doc in enumerate(documents):
-            if doc.get("markdown") and not doc["markdown"].startswith("❌"):
-                valid_documents.append(doc)
-                scraped_urls.append(doc["url"])
-                progress_log.append(f"✅ Successfully scraped: {doc['url']}")
-            else:
-                failed_urls.append(doc["url"])
-                progress_log.append(f"❌ Failed to scrape: {doc['url']}")
-        
-        if not valid_documents:
-            raise HTTPException(status_code=500, detail="No valid content extracted from URLs")
-        
-        progress_log.append(f"📊 Successfully scraped {len(valid_documents)} out of {len(urls)} URLs")
-        
-        # Step 3: Combine content
-        progress_log.append("📝 Combining and analyzing content...")
-        combined_md = "\n\n".join([doc["markdown"] for doc in valid_documents])
-        
-        # Step 4: Sentiment Analysis
+        # Step 3: Sentiment Analysis
         progress_log.append("😊 Analyzing sentiment...")
         sentiment_agent = SentimentAgent()
-        sentiment = await sentiment_agent.analyze_sentiment(combined_md)
+        sentiment_data = await sentiment_agent.analyze_sentiment(company, research_data)
         
-        # Step 5: Valuation Analysis
+        # Step 4: Valuation Analysis
         progress_log.append("💰 Estimating valuation...")
         valuation_agent = ValuationAgent()
-        valuation = await valuation_agent.estimate_valuation(combined_md)
+        valuation_data = await valuation_agent.estimate_valuation(company, research_data)
         
-        # Step 6: Generate Thesis
+        # Step 5: Generate Thesis
         progress_log.append("📈 Generating investment thesis...")
-        thesis_agent = ThesisWriterAgent()
-        thesis = await thesis_agent.generate_thesis(
-            content=combined_md, sentiment=sentiment, valuation=valuation, company_name=company
-        )
+        thesis_agent = ThesisAgent()
+        thesis_data = await thesis_agent.generate_thesis(company, research_data, sentiment_data, valuation_data)
         
-        # Step 7: Critique Thesis
+        # Extract thesis content
+        thesis = thesis_data.get("thesis_summary", "Thesis generation failed")
+        
+        # Step 6: Critique Thesis
         progress_log.append("🔍 Critiquing the thesis...")
-        critic_agent = CriticAgent()
-        critique = await critic_agent.critique_thesis(thesis_markdown=thesis, company_name=company)
+        critique_agent = CritiqueAgent()
+        critique_data = await critique_agent.critique_thesis(company, thesis_data, research_data, sentiment_data, valuation_data)
         
-        # Step 8: Revise Thesis
-        progress_log.append("✏️ Revising thesis based on critique...")
-        rewriter_agent = ThesisRewriteAgent()
-        revised_thesis = await rewriter_agent.revise_thesis(
-            thesis_markdown=thesis, critique=critique, company_name=company
-        )
+        # Extract critique content
+        critique = critique_data.get("thesis_validation", "Critique generation failed")
         
         progress_log.append("🎉 Analysis complete!")
         
@@ -119,7 +95,6 @@ async def generate_thesis(request: CompanyRequest):
             scraped_urls=scraped_urls,
             thesis=thesis,
             critique=critique,
-            revised_thesis=revised_thesis,
             status="success",
             progress_log=progress_log
         )
