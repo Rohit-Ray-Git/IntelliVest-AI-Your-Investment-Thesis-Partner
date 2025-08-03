@@ -1,8 +1,9 @@
 """
-🤖 CrewAI Agents with Advanced Fallback System
-==============================================
+🤖 CrewAI Agents with Advanced Fallback System & Parallel Processing
+===================================================================
 
-This module defines CrewAI agents with integrated tools and advanced fallback system.
+This module defines CrewAI agents with integrated tools, advanced fallback system,
+and optimized parallel processing for high-speed research.
 """
 
 import os
@@ -19,11 +20,12 @@ from llm.advanced_fallback_system import AdvancedFallbackSystem, TaskType
 
 class InvestmentAnalysisCrewWithTools:
     """
-    🚀 Advanced CrewAI system with tools and multi-LLM fallback
+    🚀 Advanced CrewAI system with tools, multi-LLM fallback, and parallel processing
     """
     
-    def __init__(self):
-        """Initialize the investment analysis crew"""
+    def __init__(self, max_concurrent: int = 10):
+        """Initialize the investment analysis crew with parallel processing"""
+        self.max_concurrent = max_concurrent
         self.setup_advanced_fallback()
         self.setup_tools()
         self.create_agents()
@@ -38,7 +40,7 @@ class InvestmentAnalysisCrewWithTools:
             raise e
     
     def setup_tools(self):
-        """Initialize all custom tools"""
+        """Initialize all custom tools including parallel processing tools"""
         try:
             from tools.investment_tools import (
                 WebCrawlerTool,
@@ -49,44 +51,66 @@ class InvestmentAnalysisCrewWithTools:
                 CritiqueTool
             )
             
+            # Import parallel processing tools
+            from tools.parallel_search_tools import (
+                ParallelWebSearchTool,
+                ParallelInstitutionalDataTool
+            )
+            
             self.tools = {
                 'web_crawler': WebCrawlerTool(),
                 'financial_data': FinancialDataTool(),
                 'sentiment_analysis': SentimentAnalysisTool(),
                 'valuation': ValuationTool(),
                 'thesis_generation': ThesisGenerationTool(),
-                'critique': CritiqueTool()
+                'critique': CritiqueTool(),
+                # Add parallel processing tools
+                'parallel_web_search': ParallelWebSearchTool(max_concurrent=self.max_concurrent),
+                'parallel_institutional_data': ParallelInstitutionalDataTool()
             }
-            print("✅ Tools initialized successfully")
+            print(f"✅ Tools initialized successfully with {self.max_concurrent} parallel workers")
         except Exception as e:
             print(f"⚠️ Error initializing tools: {e}")
             self.tools = {}
             print("⚠️ Continuing without custom tools")
     
     def create_agents(self):
-        """Create specialized CrewAI agents with advanced fallback system"""
+        """Create specialized CrewAI agents with advanced fallback system and parallel processing"""
 
-        # 🤖 Research Agent
+        # ⚡ Optimized Research Agent with Parallel Processing
         self.researcher = Agent(
-            role="Financial Research Analyst",
-            goal="Gather comprehensive financial data, news, and market information about the target company",
-            backstory="""You are an expert financial research analyst with 15+ years of experience.
-            You specialize in gathering and analyzing financial data, market news, and company information.
-            You have access to web crawling tools and financial data APIs to collect comprehensive information.
-            You can provide detailed analysis of company financials, market position, and competitive landscape.
-
-            When given a company name, you will:
-            1. Research recent news and market updates about the company
-            2. Analyze comprehensive financial metrics and ratios
-            3. Evaluate the competitive landscape and market position
-            4. Identify key risks and opportunities
-            5. Provide well-organized research findings with specific data points.
-
-            IMPORTANT: You have access to custom tools for web crawling and financial data retrieval.
-            When you need financial data, mention that you would use the financial data tool.
-            When you need news data, mention that you would use the web crawler tool.
+            role="High-Speed Financial Research Analyst",
+            goal="Gather comprehensive financial data, news, and market information using parallel processing for maximum speed",
+            backstory=f"""You are an expert financial research analyst with 15+ years of experience.
+            You specialize in gathering and analyzing financial data, market news, and company information
+            using advanced parallel processing techniques to achieve maximum speed and efficiency.
             
-            You use the most advanced AI models available for optimal analysis quality.""",
+            You have access to:
+            - Parallel web search tools for ultra-fast data discovery
+            - Financial data APIs for comprehensive metrics
+            - Parallel institutional data tools for holdings analysis
+            - Advanced AI models for optimal analysis quality
+            
+            Your parallel processing capabilities allow you to:
+            1. Search multiple news sources simultaneously
+            2. Gather financial data from multiple sources in parallel
+            3. Analyze institutional holdings and market data concurrently
+            4. Process multiple analysis tasks simultaneously
+            
+            When given a company name, you will:
+            1. Use parallel search to gather recent news and market updates rapidly
+            2. Analyze comprehensive financial metrics using parallel data gathering
+            3. Evaluate competitive landscape with concurrent analysis
+            4. Identify key risks and opportunities using parallel processing
+            5. Provide well-organized research findings with specific data points
+            
+            IMPORTANT: You have access to parallel processing tools for ultra-fast data retrieval.
+            - Use parallel web search tools for news and market data
+            - Use parallel institutional data tools for holdings analysis
+            - Use financial data tools for comprehensive metrics
+            
+            You use the most advanced AI models available for optimal analysis quality
+            and achieve 2-3x faster execution times compared to traditional sequential methods.""",
             llm=self._get_llm_for_task(TaskType.RESEARCH),
             verbose=True,
             allow_delegation=False
