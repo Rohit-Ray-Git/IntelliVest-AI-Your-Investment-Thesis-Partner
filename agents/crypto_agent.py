@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import our custom tools
-from tools.dynamic_search_tools import CryptoDataTool
+from tools.dynamic_search_tools import CryptoDataTool, DynamicWebSearchTool
 from llm.advanced_fallback_system import AdvancedFallbackSystem, TaskType
 
 class CryptoAgent:
