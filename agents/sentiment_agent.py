@@ -17,30 +17,34 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import our custom tools
+# Import our custom tools and base agent
 from tools.investment_tools import SentimentAnalysisTool
 from tools.dynamic_search_tools import DynamicWebSearchTool
-from llm.advanced_fallback_system import AdvancedFallbackSystem, TaskType
+from agents.base_agent import BaseAgent
+from llm.advanced_fallback_system import TaskType
 
-class SentimentAgent:
+class SentimentAgent(BaseAgent):
     """🧠 Sentiment Agent for market sentiment analysis"""
     
     def __init__(self):
-        self.name = "Sentiment Analyst"
-        self.role = "Market sentiment analysis and emotional intelligence"
-        self.backstory = """
-        You are an expert sentiment analyst with 12+ years of experience in market psychology.
-        You specialize in analyzing market sentiment and investor psychology, including:
-        - News sentiment and media tone analysis
-        - Social media sentiment tracking
-        - Analyst ratings and institutional sentiment
-        - Market mood and investor behavior patterns
-        - Sentiment-driven trading signals
-        
-        You use dynamic web search to find the most recent sentiment data
-        from live, publicly available sources. You understand that sentiment
-        can change rapidly and always seek the latest information.
-        """
+        """Initialize the sentiment agent"""
+        super().__init__(
+            name="Sentiment Analyst",
+            role="Market sentiment analysis and emotional intelligence",
+            backstory="""
+            You are an expert sentiment analyst with 12+ years of experience in market psychology.
+            You specialize in analyzing market sentiment and investor psychology, including:
+            - News sentiment and media tone analysis
+            - Social media sentiment tracking
+            - Analyst ratings and institutional sentiment
+            - Market mood and investor behavior patterns
+            - Sentiment-driven trading signals
+            
+            You use dynamic web search to find the most recent sentiment data
+            from live, publicly available sources. You understand that sentiment
+            can change rapidly and always seek the latest information.
+            """
+        )
         
         # Initialize tools
         self.tools = [
@@ -48,9 +52,20 @@ class SentimentAgent:
             SentimentAnalysisTool()
         ]
         
-        # Initialize advanced fallback system
-        self.fallback_system = AdvancedFallbackSystem()
+    async def analyze(self, company_name: str, **kwargs) -> Dict[str, Any]:
+        """
+        Main analysis method - conducts sentiment analysis
         
+        Args:
+            company_name: Name or symbol of the company to analyze
+            **kwargs: Additional parameters including research_data
+            
+        Returns:
+            Dictionary containing comprehensive sentiment analysis
+        """
+        research_data = kwargs.get('research_data', {})
+        return await self.analyze_sentiment(company_name, research_data)
+    
     async def analyze_sentiment(self, company_name: str, research_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Conduct comprehensive sentiment analysis
