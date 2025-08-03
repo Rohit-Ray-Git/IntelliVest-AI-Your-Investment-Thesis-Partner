@@ -17,30 +17,34 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import our custom tools
+# Import our custom tools and base agent
 from tools.investment_tools import WebCrawlerTool, FinancialDataTool
 from tools.dynamic_search_tools import DynamicWebSearchTool, InstitutionalDataTool
-from llm.advanced_fallback_system import AdvancedFallbackSystem, TaskType
+from agents.base_agent import BaseAgent
+from llm.advanced_fallback_system import TaskType
 
-class ResearchAgent:
+class ResearchAgent(BaseAgent):
     """🔍 Research Agent for comprehensive company analysis"""
     
     def __init__(self):
-        self.name = "Research Analyst"
-        self.role = "Comprehensive company research and data gathering"
-        self.backstory = """
-        You are an expert research analyst with 15+ years of experience in financial markets.
-        You specialize in gathering comprehensive information about companies, including:
-        - Latest news and market developments
-        - Business model and competitive analysis
-        - Financial metrics and performance data
-        - Market position and industry trends
-        - Institutional holdings and FII data
-        - Cryptocurrency market data (if applicable)
-        
-        You use dynamic web search to find the most recent and relevant information
-        from live, publicly available sources. You never rely on outdated or hard-coded sources.
-        """
+        """Initialize the research agent"""
+        super().__init__(
+            name="Research Analyst",
+            role="Comprehensive company research and data gathering",
+            backstory="""
+            You are an expert research analyst with 15+ years of experience in financial markets.
+            You specialize in gathering comprehensive information about companies, including:
+            - Latest news and market developments
+            - Business model and competitive analysis
+            - Financial metrics and performance data
+            - Market position and industry trends
+            - Institutional holdings and FII data
+            - Cryptocurrency market data (if applicable)
+            
+            You use dynamic web search to find the most recent and relevant information
+            from live, publicly available sources. You never rely on outdated or hard-coded sources.
+            """
+        )
         
         # Initialize tools
         self.tools = [
@@ -50,9 +54,19 @@ class ResearchAgent:
             FinancialDataTool()
         ]
         
-        # Initialize advanced fallback system
-        self.fallback_system = AdvancedFallbackSystem()
+    async def analyze(self, company_name: str, **kwargs) -> Dict[str, Any]:
+        """
+        Main analysis method - conducts comprehensive research
         
+        Args:
+            company_name: Name or symbol of the company to research
+            **kwargs: Additional parameters (not used for research)
+            
+        Returns:
+            Dictionary containing comprehensive research data
+        """
+        return await self.research_company(company_name)
+    
     async def research_company(self, company_name: str) -> Dict[str, Any]:
         """
         Conduct comprehensive research on a company
@@ -117,6 +131,31 @@ class ResearchAgent:
             print(f"❌ Research Agent: Error during research - {str(e)}")
             return research_data
     
+    async def provide_data(self, request_type: str, company_name: str, specific_data: List[str]) -> Dict[str, Any]:
+        """Provide research data to other agents"""
+        try:
+            if request_type == "research_data":
+                # Return existing research data if available, otherwise conduct new research
+                research_data = await self.research_company(company_name)
+                return {
+                    "agent": self.name,
+                    "data_type": request_type,
+                    "company_name": company_name,
+                    "data": research_data,
+                    "message": f"Research data provided for {company_name}"
+                }
+            else:
+                return await super().provide_data(request_type, company_name, specific_data)
+                
+        except Exception as e:
+            return {
+                "agent": self.name,
+                "data_type": request_type,
+                "company_name": company_name,
+                "data": {},
+                "error": f"Error providing research data: {str(e)}"
+            }
+    
     async def _search_latest_news(self, company_name: str) -> List[Dict[str, Any]]:
         """Search for latest news and developments"""
         try:
@@ -157,9 +196,9 @@ class ResearchAgent:
             # Also search for additional financial metrics
             search_tool = DynamicWebSearchTool()
             additional_queries = [
-                f"{company_name} financial ratios metrics",
-                f"{company_name} balance sheet income statement",
-                f"{company_name} cash flow analysis"
+                f"{company_name} financial ratios P/E P/B ROE",
+                f"{company_name} revenue growth profit margin",
+                f"{company_name} balance sheet cash flow"
             ]
             
             additional_data = {}
@@ -169,8 +208,8 @@ class ResearchAgent:
                     additional_data[query] = result
             
             return {
-                "basic_data": financial_data,
-                "additional_metrics": additional_data
+                "financial_metrics": financial_data,
+                "additional_financial_data": additional_data
             }
             
         except Exception as e:
@@ -178,31 +217,29 @@ class ResearchAgent:
             return {}
     
     async def _get_institutional_data(self, company_name: str) -> Dict[str, Any]:
-        """Get institutional data including FII holdings"""
+        """Get institutional data and holdings"""
         try:
             # Use institutional data tool
             institutional_tool = InstitutionalDataTool()
             institutional_data = institutional_tool._run(company_name)
             
-            # Search for additional institutional information
+            # Also search for FII and institutional holdings
             search_tool = DynamicWebSearchTool()
-            additional_queries = [
-                f"{company_name} FII holdings foreign institutional investors",
-                f"{company_name} major shareholders ownership",
-                f"{company_name} institutional ownership data",
+            queries = [
+                f"{company_name} FII holdings institutional investors",
                 f"{company_name} mutual fund holdings",
-                f"{company_name} options flow institutional activity"
+                f"{company_name} insider trading institutional ownership"
             ]
             
             additional_data = {}
-            for query in additional_queries:
+            for query in queries:
                 result = search_tool._run(query)
                 if result and "✅" in result:
                     additional_data[query] = result
             
             return {
-                "institutional_data": institutional_data,
-                "additional_institutional_info": additional_data
+                "institutional_holdings": institutional_data,
+                "additional_institutional_data": additional_data
             }
             
         except Exception as e:
@@ -212,148 +249,103 @@ class ResearchAgent:
     async def _analyze_business_model(self, company_name: str, research_data: Dict) -> str:
         """Analyze business model and market position"""
         try:
-            # Use advanced fallback system for analysis
-            prompt = f"""
-            Analyze the business model and market position of {company_name} based on the following research data:
+            # Use LLM to analyze business model
+            llm = self._get_llm_for_task(TaskType.RESEARCH)
+            
+            # Prepare context from research data
+            context = f"""
+            Company: {company_name}
             
             Latest News: {research_data.get('latest_news', [])}
             Financial Data: {research_data.get('financial_data', {})}
             Institutional Data: {research_data.get('institutional_data', {})}
             
-            Provide a comprehensive analysis covering:
-            1. Business Model: How the company makes money
-            2. Market Position: Competitive advantages and market share
-            3. Revenue Streams: Primary and secondary revenue sources
-            4. Growth Strategy: How the company plans to grow
-            5. Market Trends: Industry trends affecting the company
-            
-            Format the analysis professionally for institutional investors.
+            Please analyze the business model and market position of {company_name} based on the available data.
+            Focus on:
+            1. Core business model and revenue streams
+            2. Market position and competitive advantages
+            3. Industry trends and market dynamics
+            4. Growth strategy and future prospects
             """
             
-            result = await self.fallback_system.execute_with_fallback(
-                prompt=prompt,
-                task_type=TaskType.RESEARCH,
-                max_fallbacks=3
-            )
-            
-            return result.content if result else "Business model analysis not available"
+            response = await llm.ainvoke([{"role": "user", "content": context}])
+            return response.content
             
         except Exception as e:
             print(f"❌ Error analyzing business model: {e}")
-            return "Business model analysis failed"
+            return f"Business model analysis for {company_name} could not be completed due to an error."
     
     async def _analyze_competition(self, company_name: str, research_data: Dict) -> str:
         """Analyze competitive landscape"""
         try:
-            # Search for competitive information
-            search_tool = DynamicWebSearchTool()
-            competitive_queries = [
-                f"{company_name} competitors competitive analysis",
-                f"{company_name} market share industry position",
-                f"{company_name} competitive advantages moat",
-                f"{company_name} industry competitors comparison"
-            ]
+            # Use LLM to analyze competition
+            llm = self._get_llm_for_task(TaskType.RESEARCH)
             
-            competitive_data = []
-            for query in competitive_queries:
-                result = search_tool._run(query)
-                if result and "✅" in result:
-                    competitive_data.append(result)
+            # Prepare context from research data
+            context = f"""
+            Company: {company_name}
             
-            # Analyze competitive landscape
-            prompt = f"""
-            Analyze the competitive landscape for {company_name} based on the following data:
+            Research Data: {research_data}
             
-            Competitive Data: {competitive_data}
-            Financial Data: {research_data.get('financial_data', {})}
-            
-            Provide analysis covering:
-            1. Main Competitors: Key competitors in the market
-            2. Competitive Advantages: What makes this company unique
-            3. Market Share: Company's position relative to competitors
-            4. Competitive Threats: Potential challenges from competitors
-            5. Industry Dynamics: How competition affects the business
-            
-            Format professionally for investment analysis.
+            Please analyze the competitive landscape for {company_name} based on the available data.
+            Focus on:
+            1. Direct competitors and their market positions
+            2. Competitive advantages and disadvantages
+            3. Market share and competitive dynamics
+            4. Barriers to entry and competitive moats
+            5. Competitive threats and opportunities
             """
             
-            result = await self.fallback_system.execute_with_fallback(
-                prompt=prompt,
-                task_type=TaskType.RESEARCH,
-                max_fallbacks=3
-            )
-            
-            return result.content if result else "Competitive analysis not available"
+            response = await llm.ainvoke([{"role": "user", "content": context}])
+            return response.content
             
         except Exception as e:
             print(f"❌ Error analyzing competition: {e}")
-            return "Competitive analysis failed"
+            return f"Competitive analysis for {company_name} could not be completed due to an error."
     
     async def _analyze_risks_and_growth(self, company_name: str, research_data: Dict) -> Dict[str, Any]:
-        """Analyze risk factors and growth prospects"""
+        """Analyze risks and growth prospects"""
         try:
-            # Search for risk and growth information
-            search_tool = DynamicWebSearchTool()
-            risk_queries = [
-                f"{company_name} risk factors challenges",
-                f"{company_name} growth prospects opportunities",
-                f"{company_name} regulatory risks compliance",
-                f"{company_name} market risks volatility"
-            ]
+            # Use LLM to analyze risks and growth
+            llm = self._get_llm_for_task(TaskType.RESEARCH)
             
-            risk_data = []
-            for query in risk_queries:
-                result = search_tool._run(query)
-                if result and "✅" in result:
-                    risk_data.append(result)
+            # Prepare context from research data
+            context = f"""
+            Company: {company_name}
             
-            # Analyze risks and growth
-            prompt = f"""
-            Analyze risk factors and growth prospects for {company_name} based on:
+            Research Data: {research_data}
             
-            Risk Data: {risk_data}
-            Financial Data: {research_data.get('financial_data', {})}
-            News Data: {research_data.get('latest_news', [])}
+            Please analyze the risks and growth prospects for {company_name} based on the available data.
             
-            Provide analysis covering:
+            For Risks, identify:
+            1. Business risks and operational challenges
+            2. Financial risks and liquidity concerns
+            3. Market risks and competitive threats
+            4. Regulatory risks and compliance issues
+            5. Technology risks and disruption potential
             
-            RISK FACTORS:
-            1. Market Risks: Industry and market-related risks
-            2. Financial Risks: Debt, liquidity, and financial risks
-            3. Operational Risks: Business and operational challenges
-            4. Regulatory Risks: Compliance and regulatory issues
-            5. Competitive Risks: Threats from competitors
-            
-            GROWTH PROSPECTS:
-            1. Market Opportunities: Potential growth areas
-            2. Strategic Initiatives: Company's growth strategies
-            3. Industry Trends: Favorable industry developments
-            4. Innovation Potential: R&D and innovation opportunities
-            5. Geographic Expansion: International growth potential
-            
-            Format professionally for investment analysis.
+            For Growth Prospects, identify:
+            1. Market expansion opportunities
+            2. Product development potential
+            3. Strategic initiatives and partnerships
+            4. Industry trends favoring growth
+            5. Competitive advantages supporting growth
             """
             
-            result = await self.fallback_system.execute_with_fallback(
-                prompt=prompt,
-                task_type=TaskType.RESEARCH,
-                max_fallbacks=3
-            )
+            response = await llm.ainvoke([{"role": "user", "content": context}])
             
-            # Parse the result to separate risks and growth
-            content = result.content if result else "Risk and growth analysis not available"
+            # Parse the response to extract risks and growth
+            content = response.content
             
-            # Simple parsing - in production, you'd want more sophisticated parsing
+            # Simple parsing - in a real implementation, you might use more sophisticated parsing
             risks = []
             growth = ""
             
-            if "RISK FACTORS:" in content:
-                risk_section = content.split("RISK FACTORS:")[1].split("GROWTH PROSPECTS:")[0]
-                risks = [line.strip() for line in risk_section.split('\n') if line.strip() and line.strip()[0].isdigit()]
+            if "risks" in content.lower():
+                risks = [line.strip() for line in content.split('\n') if any(risk_word in line.lower() for risk_word in ['risk', 'threat', 'challenge', 'concern'])]
             
-            if "GROWTH PROSPECTS:" in content:
-                growth_section = content.split("GROWTH PROSPECTS:")[1]
-                growth = growth_section.strip()
+            if "growth" in content.lower():
+                growth = content
             
             return {
                 "risks": risks,
@@ -363,106 +355,6 @@ class ResearchAgent:
         except Exception as e:
             print(f"❌ Error analyzing risks and growth: {e}")
             return {
-                "risks": ["Risk analysis failed"],
-                "growth": "Growth analysis failed"
-            }
-    
-    async def handle_message(self, message):
-        """
-        Handle incoming messages from other agents
-        
-        Args:
-            message: AgentMessage object containing the message
-            
-        Returns:
-            Response dictionary
-        """
-        try:
-            if message.message_type.value == "data_request":
-                return await self._handle_data_request(message)
-            elif message.message_type.value == "collaboration_request":
-                return await self._handle_collaboration_request(message)
-            elif message.message_type.value == "analysis_request":
-                return await self._handle_analysis_request(message)
-            elif message.message_type.value == "validation_request":
-                return await self._handle_validation_request(message)
-            else:
-                return {
-                    "status": "success",
-                    "agent": self.name,
-                    "message_type": message.message_type.value,
-                    "response": f"Processed {message.message_type.value} from {message.sender}"
-                }
-        except Exception as e:
-            return {
-                "status": "error",
-                "agent": self.name,
-                "error": str(e)
-            }
-    
-    async def _handle_data_request(self, message):
-        """Handle data requests from other agents"""
-        company_name = message.content.get("company_name", "")
-        request_type = message.content.get("request_type", "")
-        
-        if request_type == "company_research":
-            research_data = await self.research_company(company_name)
-            return {
-                "status": "success",
-                "agent": self.name,
-                "data": research_data,
-                "data_type": "company_research"
-            }
-        elif request_type == "financial_data":
-            financial_data = await self._get_financial_data(company_name)
-            return {
-                "status": "success",
-                "agent": self.name,
-                "data": financial_data,
-                "data_type": "financial_data"
-            }
-        else:
-            return {
-                "status": "success",
-                "agent": self.name,
-                "response": f"Provided {request_type} data for {company_name}"
-            }
-    
-    async def _handle_collaboration_request(self, message):
-        """Handle collaboration requests from other agents"""
-        collaboration_type = message.content.get("collaboration_type", "")
-        shared_data = message.content.get("shared_data", {})
-        
-        return {
-            "status": "success",
-            "agent": self.name,
-            "collaboration_type": collaboration_type,
-            "response": f"Collaborating on {collaboration_type}"
-        }
-    
-    async def _handle_analysis_request(self, message):
-        """Handle analysis requests from other agents"""
-        analysis_type = message.content.get("analysis_type", "")
-        data = message.content.get("data", {})
-        
-        return {
-            "status": "success",
-            "agent": self.name,
-            "analysis_type": analysis_type,
-            "response": f"Performed {analysis_type} analysis"
-        }
-    
-    async def _handle_validation_request(self, message):
-        """Handle validation requests from other agents"""
-        validation_type = message.content.get("validation_type", "")
-        data = message.content.get("data", {})
-        
-        return {
-            "status": "success",
-            "agent": self.name,
-            "validation_type": validation_type,
-            "response": f"Validated {validation_type}"
-        }
-
-# Export the agent
-__all__ = ['ResearchAgent'] 
+                "risks": [f"Risk analysis for {company_name} could not be completed due to an error."],
+                "growth": f"Growth analysis for {company_name} could not be completed due to an error."
+            } 
