@@ -60,6 +60,34 @@ class EnhancedThesisRewriteAgent(CommunicatingAgent):
         # Initialize advanced fallback system
         self.fallback_system = AdvancedFallbackSystem()
         
+    async def rewrite_thesis(self, company_name: str, thesis_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Rewrite thesis for a company (main interface method)
+        
+        Args:
+            company_name: Name or symbol of the company
+            thesis_data: Dictionary containing thesis data and critique
+            
+        Returns:
+            Dictionary containing rewritten thesis
+        """
+        thesis_markdown = thesis_data.get("investment_thesis", "")
+        critique = thesis_data.get("critique", "")
+        available_data = thesis_data.get("available_data", {})
+        
+        # Use the intelligent revision method
+        revised_thesis = await self.revise_thesis_intelligently(
+            thesis_markdown, critique, company_name, available_data
+        )
+        
+        return {
+            "company_name": company_name,
+            "rewritten_thesis": revised_thesis,
+            "original_thesis": thesis_markdown,
+            "critique_incorporated": critique,
+            "improvement_summary": "Thesis has been intelligently revised with inter-agent collaboration"
+        }
+        
     async def revise_thesis_intelligently(self, thesis_markdown: str, critique: str, 
                                         company_name: str, available_data: Dict[str, Any] = None) -> str:
         """

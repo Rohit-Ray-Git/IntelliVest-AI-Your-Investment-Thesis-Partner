@@ -69,6 +69,20 @@ class ValuationAgent(BaseAgent):
         sentiment_data = kwargs.get('sentiment_data', {})
         return await self.conduct_valuation(company_name, research_data, sentiment_data)
     
+    async def analyze_valuation(self, company_name: str, research_data: Dict[str, Any] = None, sentiment_data: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Analyze valuation for a company (alias for conduct_valuation)
+        
+        Args:
+            company_name: Name or symbol of the company to analyze
+            research_data: Optional research data from previous analysis
+            sentiment_data: Optional sentiment data from previous analysis
+            
+        Returns:
+            Dictionary containing comprehensive valuation analysis
+        """
+        return await self.conduct_valuation(company_name, research_data, sentiment_data)
+    
     async def provide_data(self, request_type: str, company_name: str, specific_data: List[str]) -> Dict[str, Any]:
         """Provide valuation data to other agents"""
         try:
