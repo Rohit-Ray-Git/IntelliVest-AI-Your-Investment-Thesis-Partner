@@ -47,7 +47,7 @@ except ImportError:
 
 # Import crawl4ai for advanced web crawling
 try:
-from crawl4ai import AsyncWebCrawler
+    from crawl4ai import AsyncWebCrawler
     CRAWL4AI_AVAILABLE = False  # Disabled due to Windows Playwright issues
 except ImportError:
     CRAWL4AI_AVAILABLE = False
@@ -244,9 +244,9 @@ class DynamicWebSearchTool(BaseTool):
         """Scrape content using simple requests (for simple sites)"""
         try:
             response = self.session.get(url, timeout=10)  # Back to 10 seconds for reliability
-                    response.raise_for_status()
-                    
-                    soup = BeautifulSoup(response.text, 'html.parser')
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
             content = self._extract_relevant_content(soup, url)
             
             return {
@@ -422,7 +422,7 @@ class DynamicWebSearchTool(BaseTool):
                 '.entry-content', '.article-content', '.story-content', '.text-content',
                 '.body-content', '.page-content', '.main', '.post', '.entry',
                 '[role="main"]', '[role="article"]', '.article', '.story'
-        ]
+            ]
         
             for selector in content_selectors:
                 elements = soup.select(selector)
@@ -553,10 +553,10 @@ class DynamicWebSearchTool(BaseTool):
                 else:
                     return "Content extracted but no highly relevant financial information found."
                 
-            except Exception as e:
+        except Exception as e:
             print(f"❌ Enhanced LLM extraction error: {e}")
             return raw_content[:1000] if raw_content else "Content extraction failed."
-    
+
     def _preprocess_content(self, content: str) -> str:
         """Preprocess content to improve quality"""
         if not content:

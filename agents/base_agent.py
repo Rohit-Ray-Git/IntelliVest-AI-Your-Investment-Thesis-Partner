@@ -179,7 +179,10 @@ class BaseAgent(ABC):
     def _get_llm_for_task(self, task_type: TaskType):
         """Get appropriate LLM for task type"""
         if self.fallback_system:
-            return self.fallback_system.get_llm_for_task(task_type)
+            # Select optimal model for the task
+            optimal_model = self.fallback_system.select_optimal_model(task_type)
+            # Get LLM instance for the selected model
+            return self.fallback_system.get_llm_instance(optimal_model)
         else:
             # Fallback to default LLM if fallback system is not available
             from langchain_google_genai import ChatGoogleGenerativeAI
