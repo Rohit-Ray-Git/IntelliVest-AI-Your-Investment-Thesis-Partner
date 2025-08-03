@@ -66,6 +66,31 @@ class SentimentAgent(BaseAgent):
         research_data = kwargs.get('research_data', {})
         return await self.analyze_sentiment(company_name, research_data)
     
+    async def provide_data(self, request_type: str, company_name: str, specific_data: List[str]) -> Dict[str, Any]:
+        """Provide sentiment data to other agents"""
+        try:
+            if request_type == "sentiment_data":
+                # Conduct sentiment analysis and return data
+                sentiment_data = await self.analyze_sentiment(company_name)
+                return {
+                    "agent": self.name,
+                    "data_type": request_type,
+                    "company_name": company_name,
+                    "data": sentiment_data,
+                    "message": f"Sentiment data provided for {company_name}"
+                }
+            else:
+                return await super().provide_data(request_type, company_name, specific_data)
+                
+        except Exception as e:
+            return {
+                "agent": self.name,
+                "data_type": request_type,
+                "company_name": company_name,
+                "data": {},
+                "error": f"Error providing sentiment data: {str(e)}"
+            }
+    
     async def analyze_sentiment(self, company_name: str, research_data: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Conduct comprehensive sentiment analysis
