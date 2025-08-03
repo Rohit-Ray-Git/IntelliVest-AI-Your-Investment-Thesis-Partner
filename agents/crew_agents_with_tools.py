@@ -186,35 +186,16 @@ class InvestmentAnalysisCrewWithTools:
     def _get_llm_for_task(self, task_type: TaskType):
         """Get LLM instance for a specific task type using advanced fallback system"""
         try:
-            # Get the primary model for this task type
-            primary_provider = self.fallback_system.fallback_chains[task_type][0]
-            
-            # For CrewAI, we need to use the correct model format
-            if primary_provider.value.startswith("gemini"):
-                # Use Google Generative AI for Gemini models
-                return ChatGoogleGenerativeAI(
-                    model=primary_provider.value,
-                    google_api_key=os.getenv("GOOGLE_API_KEY"),
-                    temperature=0.7
-                )
-            elif primary_provider.value.startswith("groq/"):
-                # Use OpenAI format for Groq models
-                return ChatOpenAI(
-                    model=primary_provider.value,
-                    api_key=os.getenv("OPENAI_API_KEY"),
-                    base_url=os.getenv("OPENAI_API_BASE"),
-                    temperature=0.7
-                )
-            else:
-                # Fallback to Gemini 2.5 Flash
-                return ChatGoogleGenerativeAI(
-                    model="gemini-2.5-flash",
-                    google_api_key=os.getenv("GOOGLE_API_KEY"),
-                    temperature=0.7
-                )
+            # For CrewAI with LiteLLM, we need to use the proper model format
+            # Use Gemini 2.5 Flash as the primary model for all tasks
+            return ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash",  # Direct model name for Google Generative AI
+                google_api_key=os.getenv("GOOGLE_API_KEY"),
+                temperature=0.7
+            )
         except Exception as e:
             print(f"⚠️ Error getting LLM for {task_type.value}: {e}")
-            # Fallback to basic LLM setup - use direct model name without prefix
+            # Fallback to basic LLM setup
             return ChatGoogleGenerativeAI(
                 model="gemini-2.5-flash",
                 google_api_key=os.getenv("GOOGLE_API_KEY"),

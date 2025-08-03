@@ -39,6 +39,28 @@ class ModelProvider(Enum):
     GEMINI_2_0_FLASH = "gemini-2.0-flash"
     GEMINI_1_5_FLASH = "gemini-1.5-flash"
 
+def _format_model_for_litellm(model_name: str) -> tuple[str, str]:
+    """
+    Format model name for LiteLLM with proper provider prefix
+    
+    Args:
+        model_name: Raw model name
+        
+    Returns:
+        tuple: (formatted_model_name, provider)
+    """
+    if "/" not in model_name:
+        if "gemini" in model_name:
+            return f"google/{model_name}", "google"
+        elif "llama" in model_name or "deepseek" in model_name or "mixtral" in model_name:
+            return f"groq/{model_name}", "groq"
+        else:
+            raise ValueError(f"Unknown model provider for: {model_name}")
+    
+    # Model already has provider prefix
+    provider = model_name.split("/")[0]
+    return model_name, provider
+
 class TaskType(Enum):
     """Task types for intelligent routing"""
     RESEARCH = "research"
@@ -261,23 +283,28 @@ class AdvancedFallbackSystem:
     def get_llm_instance(self, provider: ModelProvider) -> Optional[ChatOpenAI]:
         """Get LLM instance for a specific provider"""
         try:
-            if provider.value.startswith("groq/"):
+            # Format model name for LiteLLM
+            formatted_model, model_provider = _format_model_for_litellm(provider.value)
+            
+            if model_provider == "groq":
                 return ChatOpenAI(
-                    model=provider.value,
+                    model=formatted_model,
                     api_key=os.getenv("GROQ_API_KEY"),
                     base_url="https://api.groq.com/openai/v1",  # Groq's OpenAI-compatible endpoint
                     temperature=self.models[provider].temperature,
                     max_tokens=self.models[provider].max_tokens
                 )
-            elif provider.value.startswith("gemini"):
+            elif model_provider == "google":
+                # Remove the "google/" prefix for Google Generative AI
+                model_name = formatted_model.replace("google/", "")
                 return ChatGoogleGenerativeAI(
-                    model=provider.value,
+                    model=model_name,
                     google_api_key=os.getenv("GOOGLE_API_KEY"),
                     temperature=self.models[provider].temperature,
                     max_output_tokens=self.models[provider].max_tokens
                 )
             else:
-                print(f"❌ Unknown provider: {provider.value}")
+                print(f"❌ Unknown provider: {model_provider}")
                 return None
                 
         except Exception as e:
