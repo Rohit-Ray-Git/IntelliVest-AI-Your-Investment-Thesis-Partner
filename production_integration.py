@@ -35,6 +35,7 @@ from tools.investment_tools import (
     WebCrawlerTool, FinancialDataTool, SentimentAnalysisTool,
     ValuationTool, ThesisGenerationTool, CritiqueTool
 )
+from tools.market_scanner_tool import MarketScannerTool
 
 @dataclass
 class AnalysisRequest:
@@ -183,9 +184,10 @@ class ProductionIntelliVestAI:
                 'sentiment_analysis': SentimentAnalysisTool(),
                 'valuation': ValuationTool(),
                 'thesis_generation': ThesisGenerationTool(),
-                'critique': CritiqueTool()
+                'critique': CritiqueTool(),
+                'market_scanner': MarketScannerTool()
             }
-            print("✅ Custom Tools: 6 tools initialized")
+            print("✅ Custom Tools: 7 tools initialized (including Market Scanner)")
         except Exception as e:
             print(f"⚠️ Custom Tools failed: {e}")
             self.tools = {}
@@ -679,6 +681,27 @@ class ProductionIntelliVestAI:
         except Exception as e:
             print(f"⚠️ Error retrieving analyses for {company_name}: {e}")
             return []
+
+    def get_market_insights(self, days_back: int = 5) -> Dict[str, Any]:
+        """Get market insights for home screen display"""
+        try:
+            print(f"📈 Getting market insights for last {days_back} days...")
+            
+            if 'market_scanner' in self.tools:
+                market_data = self.tools['market_scanner']._run(days_back)
+                return market_data
+            else:
+                return {
+                    "error": "Market scanner not available",
+                    "scan_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+        except Exception as e:
+            print(f"❌ Could not get market insights: {e}")
+            return {
+                "error": f"Market insights failed: {str(e)}",
+                "scan_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
 
 # Example usage and testing
 async def test_production_system():

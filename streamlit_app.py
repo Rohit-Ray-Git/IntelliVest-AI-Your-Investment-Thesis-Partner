@@ -983,7 +983,7 @@ class IntelliVestStreamlitApp:
         self.render_metrics()
         
         # Main content area
-        tab1, tab2, tab3, tab4 = st.tabs(["🚀 Analysis", "📚 History", "🔧 Status", "ℹ️ About"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Analysis", "📈 Market Overview", "📚 History", "🔧 Status", "ℹ️ About"])
         
         with tab1:
             # Render analysis form
@@ -1052,14 +1052,165 @@ class IntelliVestStreamlitApp:
                     st.warning("⚠️ Please enter a company name")
         
         with tab2:
-            self.render_history()
+            self.render_market_overview()
         
         with tab3:
-            self.render_system_status()
+            self.render_history()
         
         with tab4:
+            self.render_system_status()
+        
+        with tab5:
             self.render_about()
     
+    def render_market_overview(self):
+        """Render the market overview tab"""
+        st.markdown("## �� Market Overview")
+        
+        # Add refresh button for market data
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            st.info("🔍 Scanning market for top performers and trending sectors...")
+        
+        with col2:
+            if st.button("🔄 Refresh Market Data", help="Update market data"):
+                st.rerun()
+        
+        # Get market insights
+        if self.system:
+            try:
+                with st.spinner("📊 Fetching market data..."):
+                    market_data = self.system.get_market_insights(days_back=5)
+                
+                if "error" in market_data:
+                    st.error(f"❌ Market data error: {market_data['error']}")
+                    return
+                
+                # Display market summary
+                st.markdown("### 📊 Market Summary")
+                st.info(f"**Scan Date:** {market_data.get('scan_date', 'Unknown')}")
+                st.info(f"**Days Analyzed:** {market_data.get('days_analyzed', 5)}")
+                
+                # Market insights
+                insights = market_data.get('market_insights', {})
+                if insights:
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        sentiment = insights.get('market_sentiment', 'neutral')
+                        sentiment_emoji = "📈" if sentiment == 'bullish' else "📉" if sentiment == 'bearish' else "➡️"
+                        st.metric("Market Sentiment", f"{sentiment_emoji} {sentiment.title()}")
+                    
+                    with col2:
+                        risk_level = insights.get('risk_level', 'medium')
+                        risk_emoji = "🟢" if risk_level == 'low' else "🟡" if risk_level == 'medium' else "🔴"
+                        st.metric("Risk Level", f"{risk_emoji} {risk_level.title()}")
+                    
+                    with col3:
+                        trending_sectors = insights.get('trending_sectors', [])
+                        st.metric("Trending Sectors", len(trending_sectors))
+                
+                # Top performing stocks
+                top_stocks = market_data.get('top_performing_stocks', [])
+                if top_stocks:
+                    st.markdown("### 🏆 Top Performing Stocks")
+                    
+                    # Create a dataframe for better display
+                    stock_data = []
+                    for stock in top_stocks[:10]:
+                        stock_data.append({
+                            "Symbol": stock['symbol'],
+                            "Name": stock['name'][:30] + "..." if len(stock['name']) > 30 else stock['name'],
+                            "Sector": stock['sector'],
+                            "Price": f"${stock['current_price']}",
+                            "Change": f"{stock['price_change_pct']:+.2f}%",
+                            "Volatility": f"{stock['volatility']:.1f}%",
+                            "Score": f"{stock['performance_score']:.1f}"
+                        })
+                    
+                    if stock_data:
+                        df_stocks = pd.DataFrame(stock_data)
+                        
+                        # Color code the change column
+                        def color_change(val):
+                            if '+' in val:
+                                return 'color: green'
+                            elif '-' in val:
+                                return 'color: red'
+                            return ''
+                        
+                        styled_df = df_stocks.style.applymap(color_change, subset=['Change'])
+                        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                        
+                        # Show top 3 stocks in cards
+                        st.markdown("### 🥇 Top 3 Performers")
+                        cols = st.columns(3)
+                        
+                        for i, stock in enumerate(top_stocks[:3]):
+                            with cols[i]:
+                                direction = "📈" if stock['price_change_pct'] > 0 else "📉"
+                                st.markdown(f"""
+                                <div style="padding: 1rem; border: 1px solid #ddd; border-radius: 10px; text-align: center;">
+                                    <h4>{stock['symbol']}</h4>
+                                    <p><strong>{stock['name']}</strong></p>
+                                    <p style="font-size: 1.5rem; color: {'green' if stock['price_change_pct'] > 0 else 'red'};">
+                                        {direction} {stock['price_change_pct']:+.2f}%
+                                    </p>
+                                    <p>${stock['current_price']}</p>
+                                    <p><small>{stock['sector']}</small></p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                
+                # Top performing sectors
+                top_sectors = market_data.get('top_performing_sectors', [])
+                if top_sectors:
+                    st.markdown("### 🏆 Top Performing Sectors")
+                    
+                    # Create sector chart
+                    sector_data = []
+                    for sector in top_sectors[:5]:
+                        sector_data.append({
+                            "Sector": sector['name'],
+                            "Performance": sector['price_change_pct'],
+                            "Volatility": sector['volatility']
+                        })
+                    
+                    if sector_data:
+                        df_sectors = pd.DataFrame(sector_data)
+                        
+                        # Create bar chart
+                        fig = px.bar(
+                            df_sectors,
+                            x='Sector',
+                            y='Performance',
+                            color='Performance',
+                            title="Sector Performance (Last 5 Days)",
+                            color_continuous_scale=['red', 'yellow', 'green']
+                        )
+                        fig.update_layout(height=400)
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Display sector table
+                        st.dataframe(df_sectors, use_container_width=True, hide_index=True)
+                
+                # Market insights
+                if insights.get('key_observations'):
+                    st.markdown("### 🔍 Key Market Observations")
+                    for observation in insights['key_observations']:
+                        st.info(f"• {observation}")
+                
+                # Market summary
+                if market_data.get('market_summary'):
+                    with st.expander("📋 Detailed Market Summary"):
+                        st.markdown(market_data['market_summary'])
+                
+            except Exception as e:
+                st.error(f"❌ Could not load market data: {e}")
+                st.info("Please try refreshing the market data or check your internet connection.")
+        else:
+            st.warning("⚠️ System not available for market data")
+
     def render_about(self):
         """Render about section"""
         st.markdown("## ℹ️ About IntelliVest AI")
