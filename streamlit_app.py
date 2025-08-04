@@ -112,6 +112,18 @@ class IntelliVestStreamlitApp:
         """Initialize the Streamlit app"""
         self.system = None
         self.analysis_history = []
+        
+        # Initialize session state for metrics
+        if 'metrics_initialized' not in st.session_state:
+            st.session_state.metrics_initialized = False
+            st.session_state.total_analyses = 0
+            st.session_state.successful_analyses = 0
+            st.session_state.failed_analyses = 0
+            st.session_state.average_execution_time = 0.0
+            st.session_state.available_models = 8
+            st.session_state.execution_times = []
+            st.session_state.metrics_updated = False  # Flag to track metrics updates
+        
         self.initialize_system()
     
     def initialize_system(self):
@@ -123,6 +135,116 @@ class IntelliVestStreamlitApp:
         except Exception as e:
             st.error(f"❌ System initialization failed: {e}")
             st.stop()
+    
+    def update_metrics_after_analysis(self, result):
+        """Update metrics after an analysis is completed"""
+        st.session_state.total_analyses += 1
+        
+        if result and result.status == "success":
+            st.session_state.successful_analyses += 1
+        else:
+            st.session_state.failed_analyses += 1
+        
+        if result and hasattr(result, 'execution_time'):
+            st.session_state.execution_times.append(result.execution_time)
+            # Calculate average execution time
+            if st.session_state.execution_times:
+                st.session_state.average_execution_time = sum(st.session_state.execution_times) / len(st.session_state.execution_times)
+    
+    def update_metrics_from_system(self):
+        """Update session state metrics from system status"""
+        if self.system:
+            try:
+                status = self.system.get_system_status()
+                metrics = status.get('metrics', {})
+                
+                # Store old values for comparison
+                old_total = st.session_state.total_analyses
+                old_successful = st.session_state.successful_analyses
+                
+                # Update metrics
+                st.session_state.total_analyses = metrics.get('total_analyses', 0)
+                st.session_state.successful_analyses = metrics.get('successful_analyses', 0)
+                st.session_state.failed_analyses = metrics.get('failed_analyses', 0)
+                st.session_state.average_execution_time = metrics.get('average_execution_time', 0.0)
+                
+                # Get available models from fallback system
+                fallback_status = status.get('advanced_fallback_status', {})
+                st.session_state.available_models = fallback_status.get('available_models', 8)
+                
+                st.session_state.metrics_initialized = True
+                
+                # Check if metrics changed
+                if (old_total != st.session_state.total_analyses or 
+                    old_successful != st.session_state.successful_analyses):
+                    print(f"📊 Metrics updated: {old_total}→{st.session_state.total_analyses} analyses, {old_successful}→{st.session_state.successful_analyses} successful")
+                else:
+                    print("📊 Metrics refreshed (no changes)")
+                    
+            except Exception as e:
+                print(f"⚠️ Could not update metrics from system: {e}")
+                st.error(f"⚠️ Could not update metrics: {e}")
+        else:
+            st.warning("⚠️ System not available for metrics update")
+    
+    def render_metrics(self):
+        """Render system metrics"""
+        # Show success message if metrics were just updated
+        if st.session_state.metrics_updated:
+            st.success("✅ Metrics updated from system!")
+        
+        # Add refresh button
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 0.5])
+        
+        with col1:
+            st.metric(
+                "Total Analyses",
+                st.session_state.total_analyses,
+                help="Total number of analyses performed"
+            )
+        
+        with col2:
+            total = st.session_state.total_analyses
+            successful = st.session_state.successful_analyses
+            success_rate = f"{successful}/{total}" if total > 0 else "0/0"
+            st.metric(
+                "Success Rate",
+                success_rate,
+                help="Successful vs total analyses"
+            )
+        
+        with col3:
+            st.metric(
+                "Avg Execution Time",
+                f"{st.session_state.average_execution_time:.1f}s",
+                help="Average execution time per analysis"
+            )
+        
+        with col4:
+            st.metric(
+                "Available Models",
+                st.session_state.available_models,
+                help="Number of available AI models"
+            )
+        
+        with col5:
+            if st.button("🔄", help="Refresh metrics from system"):
+                # Set flag to update metrics
+                st.session_state.metrics_updated = True
+                # Update metrics from system
+                self.update_metrics_from_system()
+                # Reset the flag
+                st.session_state.metrics_updated = False
+        
+        # Add a small reset option for testing
+        if st.session_state.total_analyses > 0:
+            if st.button("🗑️ Reset Metrics", help="Reset all metrics to zero"):
+                st.session_state.total_analyses = 0
+                st.session_state.successful_analyses = 0
+                st.session_state.failed_analyses = 0
+                st.session_state.average_execution_time = 0.0
+                st.session_state.execution_times = []
+                st.success("��️ Metrics reset!")
     
     def render_header(self):
         """Render the main header"""
@@ -184,65 +306,6 @@ class IntelliVestStreamlitApp:
             "use_advanced_fallback": use_advanced_fallback,
             "max_fallbacks": max_fallbacks
         }
-    
-    def render_metrics(self):
-        """Render system metrics"""
-        if not self.system:
-            return
-        
-        try:
-            status = self.system.get_system_status()
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                total_analyses = status.get('metrics', {}).get('total_analyses', 0)
-                st.metric(
-                    "Total Analyses",
-                    total_analyses,
-                    help="Total number of analyses performed"
-                )
-            
-            with col2:
-                successful = status.get('metrics', {}).get('successful_analyses', 0)
-                total = status.get('metrics', {}).get('total_analyses', 0)
-                success_rate = f"{successful}/{total}" if total > 0 else "0/0"
-                st.metric(
-                    "Success Rate",
-                    success_rate,
-                    help="Successful vs total analyses"
-                )
-            
-            with col3:
-                avg_time = status.get('metrics', {}).get('average_execution_time', 0.0)
-                st.metric(
-                    "Avg Execution Time",
-                    f"{avg_time:.1f}s",
-                    help="Average execution time per analysis"
-                )
-            
-            with col4:
-                # Get available models from fallback system
-                fallback_status = status.get('advanced_fallback_status', {})
-                available_models = fallback_status.get('available_models', 0)
-                st.metric(
-                    "Available Models",
-                    available_models,
-                    help="Number of available AI models"
-                )
-                
-        except Exception as e:
-            # Initialize with default values if system status fails
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total Analyses", 0)
-            with col2:
-                st.metric("Success Rate", "0/0")
-            with col3:
-                st.metric("Avg Execution Time", "0.0s")
-            with col4:
-                st.metric("Available Models", 8)  # Default to 8 models
     
     def render_analysis_form(self, config):
         """Render the analysis input form"""
@@ -344,13 +407,13 @@ class IntelliVestStreamlitApp:
         
         with tab1:
             self.render_summary_tab(content)
-        
+            
         with tab2:
             self.render_details_tab(content)
-        
+            
         with tab3:
             self.render_insights_tab(content)
-        
+            
         with tab4:
             self.render_metrics_tab(content)
     
@@ -608,37 +671,100 @@ class IntelliVestStreamlitApp:
         
         st.markdown("## 📚 Analysis History")
         
+        # Add controls for history management
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            history_limit = st.selectbox(
+                "Show last N analyses:",
+                [10, 25, 50, 100],
+                index=0,
+                help="Number of recent analyses to display"
+            )
+        
+        with col2:
+            if st.button("🔄 Refresh History"):
+                # Just show a success message - the history will be refreshed on the next render
+                st.success("✅ History refreshed!")
+        
+        with col3:
+            if st.button("🗑️ Clear History"):
+                self.system.clear_history()
+                st.success("🗑️ History cleared!")
+        
         try:
-            history = self.system.get_analysis_history(limit=10)
+            history = self.system.get_analysis_history(limit=history_limit)
             
             if history:
                 # Create a dataframe for better display
                 df = pd.DataFrame(history)
                 
-                # Display as a table
+                # Add a summary
+                st.info(f"📊 Showing {len(history)} most recent analyses")
+                
+                # Display as a table with better formatting
                 st.dataframe(
                     df,
                     column_config={
-                        "company_name": "Company",
-                        "analysis_type": "Type",
-                        "status": "Status",
+                        "company_name": st.column_config.TextColumn(
+                            "Company",
+                            width="medium"
+                        ),
+                        "analysis_type": st.column_config.SelectboxColumn(
+                            "Type",
+                            width="small",
+                            options=["full", "research", "sentiment", "valuation", "thesis"]
+                        ),
+                        "status": st.column_config.TextColumn(
+                            "Status",
+                            width="small"
+                        ),
                         "execution_time": st.column_config.NumberColumn(
                             "Time (s)",
-                            format="%.2f"
+                            format="%.2f",
+                            width="small"
                         ),
                         "confidence_score": st.column_config.NumberColumn(
                             "Confidence",
-                            format="%.2f"
+                            format="%.2f",
+                            width="small"
                         ),
-                        "timestamp": "Timestamp"
+                        "timestamp": st.column_config.DatetimeColumn(
+                            "Timestamp",
+                            format="DD/MM/YYYY HH:mm",
+                            width="medium"
+                        )
                     },
-                    hide_index=True
+                    hide_index=True,
+                    use_container_width=True
                 )
+                
+                # Add some statistics
+                st.markdown("### 📈 History Statistics")
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    successful = len([h for h in history if h['status'] == 'success'])
+                    st.metric("Successful", successful)
+                
+                with col2:
+                    avg_time = sum(h['execution_time'] for h in history) / len(history) if history else 0
+                    st.metric("Avg Time", f"{avg_time:.1f}s")
+                
+                with col3:
+                    avg_confidence = sum(h['confidence_score'] for h in history) / len(history) if history else 0
+                    st.metric("Avg Confidence", f"{avg_confidence:.2f}")
+                
+                with col4:
+                    unique_companies = len(set(h['company_name'] for h in history))
+                    st.metric("Companies", unique_companies)
+                
             else:
-                st.info("No analysis history available yet.")
+                st.info("No analysis history available yet. Run your first analysis to see history here!")
                 
         except Exception as e:
-            st.warning(f"Could not load history: {e}")
+            st.error(f"Could not load history: {e}")
+            st.info("Try refreshing the page or running a new analysis.")
     
     def render_system_status(self):
         """Render system status"""
@@ -677,7 +803,7 @@ class IntelliVestStreamlitApp:
                 st.bar_chart(model_df.set_index("Model"))
             else:
                 st.info("No model usage data available")
-                
+            
         except Exception as e:
             st.warning(f"Could not load system status: {e}")
     
@@ -730,6 +856,9 @@ class IntelliVestStreamlitApp:
                         # Add to history
                         if result:
                             self.analysis_history.append(result)
+                        
+                        # Update metrics after analysis
+                        self.update_metrics_after_analysis(result)
                         
                         progress_bar.progress(100)
                         status_text.text("✅ Analysis complete!")

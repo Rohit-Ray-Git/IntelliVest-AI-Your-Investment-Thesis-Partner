@@ -1,0 +1,18 @@
+[
+  {
+    "company_name": "NESCO",
+    "analysis_type": "full",
+    "status": "success",
+    "execution_time": 185.1483690738678,
+    "confidence_score": 0.9,
+    "models_used": [
+      "Research Agent (Gemini 2.5 Flash)",
+      "Sentiment Agent (Gemini 2.5 Flash)",
+      "Valuation Agent (Gemini 2.5 Flash)",
+      "Thesis Writer (Gemini 2.5 Flash)",
+      "Critic Agent (Gemini 2.5 Flash)"
+    ],
+    "timestamp": "2025-08-04T14:13:46.861595",
+    "content_summary": "{'analysis_type': 'full', 'company_name': 'NESCO', 'analysis_date': 'August 04, 2025', 'full_result': '## Investment Thesis: NESCO (AWP/NESCO Combined Entity)\\n\\n**As of August 04, 2025**\\n\\n---\\n\\n##..."
+  }
+]

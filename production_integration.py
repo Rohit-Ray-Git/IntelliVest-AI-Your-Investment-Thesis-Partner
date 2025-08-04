@@ -69,7 +69,84 @@ class ProductionIntelliVestAI:
         self.setup_systems()
         self.setup_monitoring()
         self.analysis_history = []
+        self.history_file = "analysis_history.json"
+        self.load_history()  # Load existing history
         
+    def load_history(self):
+        """Load analysis history from file"""
+        try:
+            if os.path.exists(self.history_file):
+                with open(self.history_file, 'r') as f:
+                    history_data = json.load(f)
+                    print(f"✅ Loaded {len(history_data)} historical analyses from file")
+                    
+                    # Clear existing history and load from file
+                    self.analysis_history = []
+                    
+                    # Convert the loaded data to simple objects
+                    for item in history_data:
+                        # Create a simple object with the required attributes
+                        timestamp_str = item.get('timestamp', '')
+                        
+                        history_item = type('HistoryItem', (), {
+                            'request': type('Request', (), {
+                                'company_name': item.get('company_name', 'Unknown'),
+                                'analysis_type': item.get('analysis_type', 'unknown')
+                            })(),
+                            'status': item.get('status', 'unknown'),
+                            'execution_time': item.get('execution_time', 0.0),
+                            'confidence_score': item.get('confidence_score', 0.0),
+                            'models_used': item.get('models_used', []),
+                            'timestamp': type('Timestamp', (), {
+                                'isoformat': lambda self, ts=timestamp_str: ts
+                            })(),
+                            'metadata': {
+                                'analysis_date': item.get('analysis_date', 'Unknown')
+                            }
+                        })()
+                        
+                        self.analysis_history.append(history_item)
+                    
+                    print(f"📊 Total history items in memory: {len(self.analysis_history)}")
+            else:
+                print("📝 No existing history file found, starting fresh")
+                self.analysis_history = []
+        except Exception as e:
+            print(f"⚠️ Could not load history: {e}")
+            self.analysis_history = []
+    
+    def save_history(self):
+        """Save analysis history to file"""
+        try:
+            # Convert AnalysisResult objects to serializable format
+            history_data = []
+            for analysis in self.analysis_history:
+                history_item = {
+                    "company_name": analysis.request.company_name,
+                    "analysis_type": analysis.request.analysis_type,
+                    "status": analysis.status,
+                    "execution_time": analysis.execution_time,
+                    "confidence_score": analysis.confidence_score,
+                    "models_used": analysis.models_used,
+                    "timestamp": analysis.timestamp.isoformat(),
+                    "content_summary": str(analysis.content)[:200] + "..." if analysis.content else ""
+                }
+                history_data.append(history_item)
+            
+            with open(self.history_file, 'w') as f:
+                json.dump(history_data, f, indent=2)
+            
+            print(f"💾 Saved {len(history_data)} analyses to history file")
+        except Exception as e:
+            print(f"⚠️ Could not save history: {e}")
+    
+    def clear_history(self):
+        """Clear analysis history"""
+        self.analysis_history = []
+        if os.path.exists(self.history_file):
+            os.remove(self.history_file)
+        print("🗑️ Analysis history cleared")
+    
     def setup_systems(self):
         """Setup all core systems"""
         print("🚀 Initializing Production IntelliVest AI System...")
@@ -183,9 +260,13 @@ class ProductionIntelliVestAI:
             # Store in history
             self.analysis_history.append(analysis_result)
             
+            # Save history to file
+            self.save_history()
+            
             print(f"✅ Analysis completed in {execution_time:.2f}s")
             print(f"🎯 Confidence Score: {analysis_result.confidence_score:.2f}")
             print(f"🔄 Fallbacks Used: {analysis_result.fallback_count}")
+            print(f"📊 History count after success: {len(self.analysis_history)}")
             
             return analysis_result
             
@@ -209,6 +290,15 @@ class ProductionIntelliVestAI:
             # Update metrics
             self.metrics['failed_analyses'] += 1
             self.metrics['total_analyses'] += 1
+            
+            # Store error result in history too
+            self.analysis_history.append(error_result)
+            
+            # Save history to file
+            self.save_history()
+            
+            print(f"❌ Analysis failed in {execution_time:.2f}s")
+            print(f"📊 History count after error: {len(self.analysis_history)}")
             
             return error_result
     
@@ -502,19 +592,38 @@ class ProductionIntelliVestAI:
     
     def get_analysis_history(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent analysis history"""
+        # Debug information
+        print(f"🔍 Getting analysis history...")
+        print(f"   Current history count: {len(self.analysis_history)}")
+        print(f"   Requested limit: {limit}")
+        
+        # Ensure we have the latest data - load if empty
+        if len(self.analysis_history) == 0:
+            print("   ⚠️ No analysis history found in memory, loading from file...")
+            self.load_history()
+        
         recent_analyses = self.analysis_history[-limit:] if self.analysis_history else []
-        return [
-            {
-                "company_name": analysis.request.company_name,
-                "analysis_type": analysis.request.analysis_type,
-                "status": analysis.status,
-                "execution_time": analysis.execution_time,
-                "confidence_score": analysis.confidence_score,
-                "models_used": analysis.models_used,
-                "timestamp": analysis.timestamp.isoformat()
-            }
-            for analysis in recent_analyses
-        ]
+        print(f"   📊 Returning {len(recent_analyses)} analyses")
+        
+        history_list = []
+        for analysis in recent_analyses:
+            try:
+                history_item = {
+                    "company_name": analysis.request.company_name,
+                    "analysis_type": analysis.request.analysis_type,
+                    "status": analysis.status,
+                    "execution_time": analysis.execution_time,
+                    "confidence_score": analysis.confidence_score,
+                    "models_used": analysis.models_used,
+                    "timestamp": analysis.timestamp.isoformat(),
+                    "analysis_date": analysis.metadata.get("analysis_date", "Unknown")
+                }
+                history_list.append(history_item)
+            except Exception as e:
+                print(f"   ⚠️ Error processing analysis: {e}")
+                continue
+        
+        return history_list
 
 # Example usage and testing
 async def test_production_system():
