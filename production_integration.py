@@ -100,9 +100,8 @@ class ProductionIntelliVestAI:
                             'timestamp': type('Timestamp', (), {
                                 'isoformat': lambda self, ts=timestamp_str: ts
                             })(),
-                            'metadata': {
-                                'analysis_date': item.get('analysis_date', 'Unknown')
-                            }
+                            'metadata': item.get('metadata', {}),
+                            'content': item.get('full_content', {})  # Load the full content
                         })()
                         
                         self.analysis_history.append(history_item)
@@ -129,7 +128,10 @@ class ProductionIntelliVestAI:
                     "confidence_score": analysis.confidence_score,
                     "models_used": analysis.models_used,
                     "timestamp": analysis.timestamp.isoformat(),
-                    "content_summary": str(analysis.content)[:200] + "..." if analysis.content else ""
+                    "content_summary": str(analysis.content)[:200] + "..." if analysis.content else "",
+                    # Store complete analysis content for retrieval
+                    "full_content": analysis.content if analysis.content else {},
+                    "metadata": analysis.metadata if hasattr(analysis, 'metadata') else {}
                 }
                 history_data.append(history_item)
             
@@ -624,6 +626,59 @@ class ProductionIntelliVestAI:
                 continue
         
         return history_list
+
+    def get_analysis_by_id(self, analysis_id: int) -> Dict[str, Any]:
+        """Get a specific analysis by its ID (index in history)"""
+        try:
+            if 0 <= analysis_id < len(self.analysis_history):
+                analysis = self.analysis_history[analysis_id]
+                return {
+                    "id": analysis_id,
+                    "company_name": analysis.request.company_name,
+                    "analysis_type": analysis.request.analysis_type,
+                    "status": analysis.status,
+                    "execution_time": analysis.execution_time,
+                    "confidence_score": analysis.confidence_score,
+                    "models_used": analysis.models_used,
+                    "timestamp": analysis.timestamp.isoformat(),
+                    "content": analysis.content,
+                    "metadata": analysis.metadata if hasattr(analysis, 'metadata') else {}
+                }
+            else:
+                return None
+        except Exception as e:
+            print(f"⚠️ Error retrieving analysis {analysis_id}: {e}")
+            return None
+    
+    def get_analysis_by_company(self, company_name: str) -> List[Dict[str, Any]]:
+        """Get all analyses for a specific company"""
+        try:
+            company_analyses = []
+            search_term = company_name.lower().strip()
+            
+            for i, analysis in enumerate(self.analysis_history):
+                analysis_company = analysis.request.company_name.lower()
+                
+                # More flexible matching - check if search term is in company name
+                if search_term in analysis_company or analysis_company in search_term:
+                    company_analyses.append({
+                        "id": i,
+                        "company_name": analysis.request.company_name,
+                        "analysis_type": analysis.request.analysis_type,
+                        "status": analysis.status,
+                        "execution_time": analysis.execution_time,
+                        "confidence_score": analysis.confidence_score,
+                        "models_used": analysis.models_used,
+                        "timestamp": analysis.timestamp.isoformat(),
+                        "content": analysis.content,
+                        "metadata": analysis.metadata if hasattr(analysis, 'metadata') else {}
+                    })
+            
+            print(f"🔍 Company search for '{company_name}' found {len(company_analyses)} matches")
+            return company_analyses
+        except Exception as e:
+            print(f"⚠️ Error retrieving analyses for {company_name}: {e}")
+            return []
 
 # Example usage and testing
 async def test_production_system():

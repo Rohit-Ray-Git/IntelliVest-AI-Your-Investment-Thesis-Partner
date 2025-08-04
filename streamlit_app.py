@@ -696,15 +696,26 @@ class IntelliVestStreamlitApp:
             history = self.system.get_analysis_history(limit=history_limit)
             
             if history:
-                # Create a dataframe for better display
-                df = pd.DataFrame(history)
-                
                 # Add a summary
                 st.info(f"📊 Showing {len(history)} most recent analyses")
                 
+                # Add search functionality
+                search_term = st.text_input(
+                    "🔍 Search by company name:",
+                    placeholder="Enter company name to filter...",
+                    help="Filter analyses by company name"
+                )
+                
+                # Filter history based on search
+                if search_term:
+                    filtered_history = [h for h in history if search_term.lower() in h['company_name'].lower()]
+                    st.info(f"🔍 Found {len(filtered_history)} analyses for '{search_term}'")
+                else:
+                    filtered_history = history
+                
                 # Display as a table with better formatting
                 st.dataframe(
-                    df,
+                    filtered_history,
                     column_config={
                         "company_name": st.column_config.TextColumn(
                             "Company",
@@ -739,6 +750,72 @@ class IntelliVestStreamlitApp:
                     use_container_width=True
                 )
                 
+                # Add detailed view section
+                st.markdown("### 📋 Detailed Analysis View")
+                
+                # Create tabs for different viewing options
+                tab1, tab2 = st.tabs(["🎯 View by Analysis", "🏢 View by Company"])
+                
+                with tab1:
+                    # Select analysis to view
+                    if filtered_history:
+                        analysis_options = [f"{h['company_name']} - {h['analysis_type']} ({h['timestamp'][:10]})" for h in filtered_history]
+                        selected_analysis = st.selectbox(
+                            "Select analysis to view details:",
+                            analysis_options,
+                            help="Choose an analysis to view its complete results"
+                        )
+                        
+                        if selected_analysis:
+                            # Find the selected analysis
+                            selected_index = analysis_options.index(selected_analysis)
+                            selected_history_item = filtered_history[selected_index]
+                            
+                            # Get the full analysis details using the actual analysis ID
+                            # We need to find the actual ID in the full history
+                            full_history = self.system.get_analysis_history(limit=1000)  # Get all history
+                            actual_analysis_id = None
+                            
+                            # Find the matching analysis in full history
+                            for i, full_item in enumerate(full_history):
+                                if (full_item['company_name'] == selected_history_item['company_name'] and
+                                    full_item['analysis_type'] == selected_history_item['analysis_type'] and
+                                    full_item['timestamp'] == selected_history_item['timestamp']):
+                                    actual_analysis_id = i
+                                    break
+                            
+                            if actual_analysis_id is not None:
+                                full_analysis = self.system.get_analysis_by_id(actual_analysis_id)
+                                
+                                if full_analysis:
+                                    st.success(f"📋 Showing complete analysis for {full_analysis['company_name']}")
+                                    self.render_analysis_details(full_analysis)
+                                else:
+                                    st.warning("⚠️ Could not retrieve full analysis details")
+                            else:
+                                st.warning("⚠️ Could not find the selected analysis in full history")
+                
+                with tab2:
+                    # Company search and view
+                    company_search = st.text_input(
+                        "🏢 Enter company name:",
+                        placeholder="e.g., Apple Inc., Tesla",
+                        help="View all analyses for a specific company"
+                    )
+                    
+                    if company_search:
+                        company_analyses = self.system.get_analysis_by_company(company_search)
+                        
+                        if company_analyses:
+                            st.success(f"📊 Found {len(company_analyses)} analyses for {company_search}")
+                            
+                            # Display company analyses
+                            for analysis in company_analyses:
+                                with st.expander(f"📋 {analysis['analysis_type'].title()} Analysis - {analysis['timestamp'][:10]}"):
+                                    self.render_analysis_details(analysis)
+                        else:
+                            st.info(f"📝 No analyses found for '{company_search}'")
+                
                 # Add some statistics
                 st.markdown("### 📈 History Statistics")
                 col1, col2, col3, col4 = st.columns(4)
@@ -765,6 +842,93 @@ class IntelliVestStreamlitApp:
         except Exception as e:
             st.error(f"Could not load history: {e}")
             st.info("Try refreshing the page or running a new analysis.")
+    
+    def render_analysis_details(self, analysis: Dict[str, Any]):
+        """Render detailed analysis results"""
+        st.markdown(f"#### 📊 Analysis Details for {analysis['company_name']}")
+        
+        # Debug information (can be removed later)
+        if st.checkbox("🔧 Show Debug Info", help="Show debug information about the analysis"):
+            st.json(analysis)
+        
+        # Basic info
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.info(f"**Company:** {analysis['company_name']}")
+            st.info(f"**Type:** {analysis['analysis_type'].title()}")
+        
+        with col2:
+            st.info(f"**Status:** {analysis['status'].title()}")
+            st.info(f"**Execution Time:** {analysis['execution_time']:.2f}s")
+        
+        with col3:
+            st.info(f"**Confidence:** {analysis['confidence_score']:.2f}")
+            st.info(f"**Date:** {analysis['timestamp'][:10]}")
+        
+        # Models used
+        if analysis.get('models_used'):
+            st.markdown("**🤖 Models Used:**")
+            for model in analysis['models_used']:
+                st.write(f"• {model}")
+        
+        # Analysis content
+        if analysis.get('content'):
+            st.markdown("#### 📝 Analysis Content")
+            
+            # Show content structure info
+            content = analysis['content']
+            if isinstance(content, dict):
+                st.info(f"📋 Content sections available: {list(content.keys())}")
+            
+            # Create tabs for different content sections
+            if isinstance(content, dict):
+                if "full_result" in content:
+                    # Full analysis from CrewAI
+                    st.markdown("##### 🎯 Final Investment Thesis")
+                    st.markdown(content["full_result"])
+                    
+                    # Show individual components in expanders
+                    if "original_thesis" in content:
+                        with st.expander("📝 Original Thesis"):
+                            st.markdown(content["original_thesis"])
+                    
+                    if "critique" in content:
+                        with st.expander("🔍 Critic's Recommendations"):
+                            st.markdown(content["critique"])
+                    
+                    if "research" in content:
+                        with st.expander("🔍 Research Analysis"):
+                            st.markdown(content["research"])
+                    
+                    if "sentiment" in content:
+                        with st.expander("🧠 Sentiment Analysis"):
+                            st.markdown(content["sentiment"])
+                    
+                    if "valuation" in content:
+                        with st.expander("💰 Valuation Analysis"):
+                            st.markdown(content["valuation"])
+                
+                elif "content" in content:
+                    # Single analysis type
+                    st.markdown(content["content"])
+                
+                else:
+                    # Display all content sections
+                    for key, value in content.items():
+                        if isinstance(value, str) and value.strip():
+                            with st.expander(f"📋 {key.title()}"):
+                                st.markdown(value)
+            else:
+                # If content is a string
+                st.markdown(str(content))
+        else:
+            st.warning("⚠️ No analysis content available")
+        
+        # Metadata
+        if analysis.get('metadata'):
+            with st.expander("🔧 Analysis Metadata"):
+                st.json(analysis['metadata'])
     
     def render_system_status(self):
         """Render system status"""
