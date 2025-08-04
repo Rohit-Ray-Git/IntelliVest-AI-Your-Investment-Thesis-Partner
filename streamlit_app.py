@@ -31,6 +31,9 @@ os.environ["GEMINI_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
 # Import our production system
 from production_integration import ProductionIntelliVestAI, AnalysisRequest
 
+# Import financial facts
+from financial_facts import get_random_fact, get_facts_count
+
 # Page configuration
 st.set_page_config(
     page_title="IntelliVest AI - Investment Analysis",
@@ -79,43 +82,6 @@ st.markdown("""
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     }
     
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-left: 4px solid #667eea;
-        margin: 1rem 0;
-    }
-    
-    .success-message {
-        background: #d4edda;
-        color: #155724;
-        padding: 1rem;
-        border-radius: 5px;
-        border-left: 4px solid #28a745;
-    }
-    
-    .info-message {
-        background: #d1ecf1;
-        color: #0c5460;
-        padding: 1rem;
-        border-radius: 5px;
-        border-left: 4px solid #17a2b8;
-    }
-    
-    .warning-message {
-        background: #fff3cd;
-        color: #856404;
-        padding: 1rem;
-        border-radius: 5px;
-        border-left: 4px solid #ffc107;
-    }
-    
-    .stProgress > div > div > div > div {
-        background-color: #667eea;
-    }
-    
     .stButton > button {
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
         color: white;
@@ -157,37 +123,41 @@ st.markdown("""
         padding-right: 2rem;
     }
     
-    /* Sidebar adjustments for wider layout */
-    .css-1d391kg {
-        width: 300px;
-    }
-    
-    /* Main content area adjustments */
-    .css-1v0mbdj {
-        width: calc(100% - 300px);
-    }
-    
-    /* Additional tab styling for better fit */
-    .stTabs > div {
-        width: 100%;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] > div {
-        width: 100%;
-        display: flex;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] > div > div {
-        flex: 1;
+    /* Financial facts styling */
+    .financial-fact {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin: 1rem 0;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         text-align: center;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        animation: fadeInUp 0.8s ease-out;
     }
     
-    /* Responsive adjustments */
-    @media (max-width: 1200px) {
-        .stTabs [data-baseweb="tab"] {
-            font-size: 12px;
-            padding: 8px 10px;
+    .financial-fact strong {
+        color: #f8f9fa;
+        font-weight: 600;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
         }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    /* Progress bar styling */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -237,7 +207,7 @@ class IntelliVestStreamlitApp:
             <p>Revolutionize Investment Analysis with AI-Powered Market Intelligence & Lightning-Fast Parallel Processing</p>
         </div>
         """, unsafe_allow_html=True)
-    
+        
     def render_sidebar(self):
         """Render the sidebar with configuration options"""
         st.sidebar.markdown("## ⚙️ Configuration")
@@ -334,10 +304,10 @@ class IntelliVestStreamlitApp:
             "run_analysis": run_analysis
         }
     
-    async def run_analysis_async(self, company_name: str, config: Dict, form_data: Dict):
-        """Run analysis asynchronously"""
+    async def run_analysis_with_progress(self, company_name: str, config: Dict, form_data: Dict, progress_bar, status_text):
+        """Run analysis with engaging financial facts and background rotation"""
         try:
-            # Create analysis request
+            # Create the analysis request object
             request = AnalysisRequest(
                 company_name=company_name,
                 analysis_type=config["analysis_type"],
@@ -346,15 +316,66 @@ class IntelliVestStreamlitApp:
                 max_fallbacks=config["max_fallbacks"],
                 budget_limit=form_data["budget_limit"]
             )
-            
-            # Run analysis
-            result = await self.system.analyze_company(request)
-            
+
+            # Show the first financial fact
+            initial_fact = get_random_fact()
+            status_text.markdown(f"""
+            <div class="financial-fact">
+                <strong>💡 Investment Wisdom:</strong><br>
+                {initial_fact}
+            </div>
+            """, unsafe_allow_html=True)
+            progress_bar.progress(10)
+            await asyncio.sleep(0.5)
+
+            # Start the analysis in background
+            analysis_task = asyncio.create_task(self.system.analyze_company(request))
+
+            # Rotate quotes independently while analysis is running
+            async def rotate_quotes_while_loading():
+                fact_count = 0
+                while not analysis_task.done():
+                    new_fact = get_random_fact()
+                    status_text.markdown(f"""
+                    <div class="financial-fact">
+                        <strong>💡 Investment Wisdom:</strong><br>
+                        {new_fact}
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Progress bar simulated step
+                    progress = min(10 + fact_count * 3, 90)
+                    progress_bar.progress(progress)
+
+                    fact_count += 1
+                    await asyncio.sleep(3)  # Wait exactly 3 seconds before next fact
+
+            # Start rotating quotes in parallel
+            quote_task = asyncio.create_task(rotate_quotes_while_loading())
+
+            # Wait for analysis to finish
+            result = await analysis_task
+
+            # Ensure rotation stops
+            quote_task.cancel()
+
+            # Final quote and progress
+            final_fact = get_random_fact()
+            status_text.markdown(f"""
+            <div class="financial-fact">
+                <strong>🎉 Analysis Complete!</strong><br>
+                Your comprehensive report is ready below.<br><br>
+                <strong>💡 Final Wisdom:</strong><br>
+                {final_fact}
+            </div>
+            """, unsafe_allow_html=True)
+            progress_bar.progress(100)
+            await asyncio.sleep(0.5)
+
             return result
-            
+
         except Exception as e:
-            st.error(f"❌ Analysis failed: {e}")
-            return None
+            raise e
     
     def render_analysis_results(self, result):
         """Render analysis results"""
@@ -380,7 +401,6 @@ class IntelliVestStreamlitApp:
         if result.status == "success" and result.content:
             self.render_analysis_content(result.content)
         elif result.status == "error":
-            # Don't show error again - it was already shown in the main area
             st.info("Analysis completed with errors. Please check the error message above.")
     
     def render_analysis_content(self, content):
@@ -450,29 +470,6 @@ class IntelliVestStreamlitApp:
                 # Single analysis type
                 st.markdown("### 📝 Analysis Content")
                 st.markdown(content["content"])
-            elif "research" in content and "sentiment" in content and "valuation" in content:
-                # Full analysis with separate sections
-                st.markdown("### 📝 Analysis Sections")
-                
-                if content.get("research"):
-                    st.markdown("#### 🔍 Research Analysis")
-                    st.markdown(content["research"])
-                
-                if content.get("sentiment"):
-                    st.markdown("#### 🧠 Sentiment Analysis")
-                    st.markdown(content["sentiment"])
-                
-                if content.get("valuation"):
-                    st.markdown("#### 💰 Valuation Analysis")
-                    st.markdown(content["valuation"])
-                
-                if content.get("thesis"):
-                    st.markdown("#### 📝 Investment Thesis")
-                    st.markdown(content["thesis"])
-                
-                if content.get("critique"):
-                    st.markdown("#### 🔍 Thesis Critique")
-                    st.markdown(content["critique"])
             
             # Display models used
             if "models_used" in content:
@@ -577,14 +574,6 @@ class IntelliVestStreamlitApp:
                     line_lower = line.lower()
                     if any(pattern in line_lower for pattern in insight_patterns):
                         insights.append(line.strip())
-        else:
-            # If content is a string
-            content_text = str(content)
-            lines = content_text.split('\n')
-            for line in lines:
-                line_lower = line.lower()
-                if any(pattern in line_lower for pattern in ["key", "important", "significant", "recommendation", "conclusion"]):
-                    insights.append(line.strip())
         
         if insights:
             for insight in insights[:10]:  # Limit to 10 insights
@@ -646,6 +635,104 @@ class IntelliVestStreamlitApp:
                     labels={"Time": "Execution Time (seconds)", "index": "Analysis #"}
                 )
                 st.plotly_chart(fig, use_container_width=True)
+    
+    def load_market_highlights(self):
+        """Load market highlights once and cache them"""
+        if not st.session_state.market_highlights_loaded or st.session_state.market_highlights_data is None:
+            try:
+                with st.spinner("📊 Loading market highlights..."):
+                    market_data = self.system.get_market_insights(days_back=5)
+                
+                if "error" not in market_data:
+                    st.session_state.market_highlights_data = market_data
+                    st.session_state.market_highlights_timestamp = datetime.now()
+                    st.session_state.market_highlights_loaded = True
+                    print("✅ Market highlights loaded and cached")
+                else:
+                    print(f"❌ Market highlights error: {market_data['error']}")
+                    return None
+            except Exception as e:
+                print(f"❌ Could not load market highlights: {e}")
+                return None
+        
+        return st.session_state.market_highlights_data
+    
+    def render_market_discovery_section(self):
+        """Render a simplified market discovery section with only top performers and sectors"""
+        st.markdown("## 📈 Market Highlights")
+        
+        # Load market highlights (cached)
+        market_data = self.load_market_highlights()
+        
+        if market_data is None:
+            st.error("❌ Could not load market highlights")
+            return
+        
+        # Show cache status
+        if st.session_state.market_highlights_timestamp:
+            cache_age = datetime.now() - st.session_state.market_highlights_timestamp
+            st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago")
+        
+        # Add refresh button
+        if st.button("🔄 Refresh Market Data", help="Update market highlights"):
+            st.session_state.market_highlights_loaded = False
+            st.session_state.market_highlights_data = None
+            st.rerun()
+        
+        # Top performing discovered stocks
+        top_stocks = market_data.get('top_performing_stocks', [])
+        if top_stocks:
+            st.markdown("### 🥇 Top 3 Discovered Performers")
+            cols = st.columns(3)
+            
+            for i, stock in enumerate(top_stocks[:3]):
+                with cols[i]:
+                    direction = "📈" if stock['price_change_pct'] > 0 else "📉"
+                    stock_symbol = stock['symbol'].replace('.NS', '')
+                    price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
+                    st.markdown(f"""
+                    <div style="padding: 1rem; border: 1px solid #ddd; border-radius: 10px; text-align: center;">
+                        <h4>{stock_symbol}</h4>
+                        <p><strong>{stock['name']}</strong></p>
+                        <p style="font-size: 1.5rem; color: {'green' if stock['price_change_pct'] > 0 else 'red'};">
+                            {direction} {stock['price_change_pct']:+.2f}%
+                        </p>
+                        <p>{price_symbol}{stock['current_price']}</p>
+                        <p><small>{stock['sector']}</small></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # Top performing discovered sectors
+        top_sectors = market_data.get('top_performing_sectors', [])
+        if top_sectors:
+            st.markdown("### 🏆 Top Performing Discovered Sectors")
+            
+            # Create sector chart
+            sector_data = []
+            for sector in top_sectors[:5]:
+                sector_data.append({
+                    "Sector": sector['name'],
+                    "Performance": sector['price_change_pct'],
+                    "Volatility": sector['volatility']
+                })
+            
+            if sector_data:
+                df_sectors = pd.DataFrame(sector_data)
+                
+                # Create bar chart
+                fig = px.bar(
+                    df_sectors,
+                    x='Sector',
+                    y='Performance',
+                    color='Performance',
+                    title="Discovered Sector Performance (Last 5 Days)",
+                    color_continuous_scale=['red', 'yellow', 'green']
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # Add a separator before the analysis form
+        st.markdown("---")
     
     def render_history(self):
         """Render analysis history"""
@@ -818,7 +905,6 @@ class IntelliVestStreamlitApp:
                 with col4:
                     unique_companies = len(set(h['company_name'] for h in history))
                     st.metric("Companies", unique_companies)
-                
             else:
                 st.info("No analysis history available yet. Run your first analysis to see history here!")
                 
@@ -895,7 +981,6 @@ class IntelliVestStreamlitApp:
                 elif "content" in content:
                     # Single analysis type
                     st.markdown(content["content"])
-                
                 else:
                     # Display all content sections
                     for key, value in content.items():
@@ -953,104 +1038,6 @@ class IntelliVestStreamlitApp:
             
         except Exception as e:
             st.warning(f"Could not load system status: {e}")
-    
-    def load_market_highlights(self):
-        """Load market highlights once and cache them"""
-        if not st.session_state.market_highlights_loaded or st.session_state.market_highlights_data is None:
-            try:
-                with st.spinner("📊 Loading market highlights..."):
-                    market_data = self.system.get_market_insights(days_back=5)
-                
-                if "error" not in market_data:
-                    st.session_state.market_highlights_data = market_data
-                    st.session_state.market_highlights_timestamp = datetime.now()
-                    st.session_state.market_highlights_loaded = True
-                    print("✅ Market highlights loaded and cached")
-                else:
-                    print(f"❌ Market highlights error: {market_data['error']}")
-                    return None
-            except Exception as e:
-                print(f"❌ Could not load market highlights: {e}")
-                return None
-        
-        return st.session_state.market_highlights_data
-    
-    def render_market_discovery_section(self):
-        """Render a simplified market discovery section with only top performers and sectors"""
-        st.markdown("## 📈 Market Highlights")
-        
-        # Load market highlights (cached)
-        market_data = self.load_market_highlights()
-        
-        if market_data is None:
-            st.error("❌ Could not load market highlights")
-            return
-        
-        # Show cache status
-        if st.session_state.market_highlights_timestamp:
-            cache_age = datetime.now() - st.session_state.market_highlights_timestamp
-            st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago")
-        
-        # Add refresh button
-        if st.button("🔄 Refresh Market Data", help="Update market highlights"):
-            st.session_state.market_highlights_loaded = False
-            st.session_state.market_highlights_data = None
-            st.rerun()
-        
-        # Top performing discovered stocks
-        top_stocks = market_data.get('top_performing_stocks', [])
-        if top_stocks:
-            st.markdown("### 🥇 Top 3 Discovered Performers")
-            cols = st.columns(3)
-            
-            for i, stock in enumerate(top_stocks[:3]):
-                with cols[i]:
-                    direction = "📈" if stock['price_change_pct'] > 0 else "📉"
-                    stock_symbol = stock['symbol'].replace('.NS', '')
-                    price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
-                    st.markdown(f"""
-                    <div style="padding: 1rem; border: 1px solid #ddd; border-radius: 10px; text-align: center;">
-                        <h4>{stock_symbol}</h4>
-                        <p><strong>{stock['name']}</strong></p>
-                        <p style="font-size: 1.5rem; color: {'green' if stock['price_change_pct'] > 0 else 'red'};">
-                            {direction} {stock['price_change_pct']:+.2f}%
-                        </p>
-                        <p>{price_symbol}{stock['current_price']}</p>
-                        <p><small>{stock['sector']}</small></p>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        # Top performing discovered sectors
-        top_sectors = market_data.get('top_performing_sectors', [])
-        if top_sectors:
-            st.markdown("### 🏆 Top Performing Discovered Sectors")
-            
-            # Create sector chart
-            sector_data = []
-            for sector in top_sectors[:5]:
-                sector_data.append({
-                    "Sector": sector['name'],
-                    "Performance": sector['price_change_pct'],
-                    "Volatility": sector['volatility']
-                })
-            
-            if sector_data:
-                df_sectors = pd.DataFrame(sector_data)
-                
-                # Create bar chart
-                fig = px.bar(
-                    df_sectors,
-                    x='Sector',
-                    y='Performance',
-                    color='Performance',
-                    title="Discovered Sector Performance (Last 5 Days)",
-                    color_continuous_scale=['red', 'yellow', 'green']
-                )
-                fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
-        
-        # Add a separator before the analysis form
-        st.markdown("---")
     
     def render_market_overview(self):
         """Render the full dynamic market overview tab"""
@@ -1224,7 +1211,7 @@ class IntelliVestStreamlitApp:
                 st.info("Please try refreshing the market data or check your internet connection.")
         else:
             st.warning("⚠️ System not available for market data")
-    
+
     def run(self):
         """Main application runner"""
         # Render header
@@ -1253,23 +1240,13 @@ class IntelliVestStreamlitApp:
                     status_text = st.empty()
                     
                     try:
-                        # Run analysis
-                        status_text.text("🚀 Starting analysis...")
-                        progress_bar.progress(10)
-                        
-                        # Run async analysis
+                        # Run async analysis with engaging progress
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                         
-                        status_text.text("📊 Gathering data...")
-                        progress_bar.progress(30)
-                        
                         result = loop.run_until_complete(
-                            self.run_analysis_async(company_name, config, form_data)
+                            self.run_analysis_with_progress(company_name, config, form_data, progress_bar, status_text)
                         )
-                        
-                        progress_bar.progress(80)
-                        status_text.text("📝 Processing results...")
                         
                         # Add to history
                         if result:
@@ -1279,7 +1256,7 @@ class IntelliVestStreamlitApp:
                         self.update_metrics_after_analysis(result)
                         
                         progress_bar.progress(100)
-                        status_text.text("✅ Analysis complete!")
+                        status_text.text("🎉 Analysis complete! Results ready below.")
                         
                         # Clear any previous error messages
                         st.empty()

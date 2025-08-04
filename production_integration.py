@@ -185,9 +185,10 @@ class ProductionIntelliVestAI:
                 'valuation': ValuationTool(),
                 'thesis_generation': ThesisGenerationTool(),
                 'critique': CritiqueTool(),
-                'market_scanner': DynamicMarketScannerTool()
+                'market_scanner': DynamicMarketScannerTool(max_workers=10)  # Optimal parallel workers
             }
             print("✅ Custom Tools: 7 tools initialized (including Market Scanner)")
+            print(f"   ⚡ Market Scanner: 10 parallel workers for fast data fetching")
         except Exception as e:
             print(f"⚠️ Custom Tools failed: {e}")
             self.tools = {}
