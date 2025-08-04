@@ -11,9 +11,13 @@ import asyncio
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
+# Load environment variables and configure LiteLLM
+load_dotenv()
+os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
+os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY", "")
+os.environ["GEMINI_API_KEY"] = os.getenv("GOOGLE_API_KEY", "")
+
 from crewai import Agent, Task, Crew, Process
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
 
 # Import our advanced fallback system
 from llm.advanced_fallback_system import AdvancedFallbackSystem, TaskType
@@ -212,19 +216,17 @@ class InvestmentAnalysisCrewWithTools:
         try:
             # For CrewAI with LiteLLM, we need to use the proper model format
             # Use Gemini 2.5 Flash as the primary model for all tasks
-            return ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",  # Direct model name for Google Generative AI
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
-                temperature=0.7
-            )
+            # Format: "gemini/gemini-2.5-flash" for LiteLLM (explicit format)
+            # Also ensure API key is properly configured
+            google_api_key = os.getenv("GOOGLE_API_KEY")
+            if not google_api_key:
+                print("⚠️ Warning: GOOGLE_API_KEY not found in environment")
+            
+            return "gemini/gemini-2.5-flash"
         except Exception as e:
             print(f"⚠️ Error getting LLM for {task_type.value}: {e}")
             # Fallback to basic LLM setup
-            return ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                google_api_key=os.getenv("GOOGLE_API_KEY"),
-                temperature=0.7
-            )
+            return "gemini/gemini-2.5-flash"
 
     def create_tasks(self, company_name: str) -> List[Task]:
         """Create tasks for the investment analysis workflow"""
@@ -397,6 +399,51 @@ class InvestmentAnalysisCrewWithTools:
                 """,
                 agent=self.critic,
                 expected_output="Detailed critique with specific improvement recommendations"
+            ),
+
+            # Task 6: Final Thesis Rewrite (NEW)
+            Task(
+                description=f"""
+                Rewrite the investment thesis for {company_name} based on the critic's recommendations:
+                
+                Using the original thesis and the critic's detailed feedback, create a final improved investment thesis:
+                
+                1. Address All Critic Feedback:
+                   - Incorporate all valid recommendations from the critique
+                   - Fix any identified biases or logical inconsistencies
+                   - Add missing data or analysis as suggested
+                   - Strengthen weak arguments or assumptions
+                
+                2. Enhanced Executive Summary:
+                   - Clear investment recommendation with confidence level
+                   - Key thesis points with supporting evidence
+                   - Expected return and time horizon with risk factors
+                
+                3. Strengthened Investment Case:
+                   - Robust value drivers with quantitative support
+                   - Clear growth opportunities with market validation
+                   - Competitive advantages with competitive analysis
+                
+                4. Comprehensive Financial Analysis:
+                   - Complete financial metrics with peer comparison
+                   - Multiple valuation approaches with sensitivity analysis
+                   - Financial health assessment with risk factors
+                
+                5. Thorough Risk Assessment:
+                   - Comprehensive risk identification and analysis
+                   - Risk mitigation strategies with implementation plans
+                   - Downside scenarios with probability assessment
+                
+                6. Actionable Conclusion:
+                   - Clear investment recommendation with conviction
+                   - Specific action items for investors
+                   - Key monitoring points and triggers
+                
+                Create a professional, well-structured final investment thesis that addresses all critique feedback
+                and provides a compelling, well-supported investment recommendation.
+                """,
+                agent=self.thesis_writer,
+                expected_output="Final improved investment thesis incorporating all critic recommendations"
             )
         ]
         return tasks

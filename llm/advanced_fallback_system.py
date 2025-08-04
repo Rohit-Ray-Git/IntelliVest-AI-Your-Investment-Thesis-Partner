@@ -31,11 +31,11 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 class ModelProvider(Enum):
     """Available model providers"""
     GEMINI_2_5_FLASH = "gemini-2.5-flash"
-    GROQ_DEEPSEEK_R1 = "groq/deepseek-r1-distill-llama-70b"
-    GROQ_LLAMA_3_3_70B = "groq/llama-3.3-70b-versatile"
-    GROQ_LLAMA_70B = "groq/llama3.1-70b-8192"
-    GROQ_LLAMA_8B = "groq/llama3.1-8b-8192"
-    GROQ_MIXTRAL = "groq/mixtral-8x7b-32768"
+    GROQ_DEEPSEEK_R1 = "deepseek-r1-distill-llama-70b"
+    GROQ_LLAMA_3_3_70B = "llama-3.3-70b-versatile"
+    GROQ_LLAMA_70B = "llama3.1-70b-8192"
+    GROQ_LLAMA_8B = "llama3.1-8b-8192"
+    GROQ_MIXTRAL = "mixtral-8x7b-32768"
     GEMINI_2_0_FLASH = "gemini-2.0-flash"
     GEMINI_1_5_FLASH = "gemini-1.5-flash"
 
@@ -51,7 +51,8 @@ def _format_model_for_litellm(model_name: str) -> tuple[str, str]:
     """
     if "/" not in model_name:
         if "gemini" in model_name:
-            return f"google/{model_name}", "google"
+            # LiteLLM needs explicit format: gemini/gemini-2.5-flash
+            return f"gemini/{model_name}", "google"
         elif "llama" in model_name or "deepseek" in model_name or "mixtral" in model_name:
             return f"groq/{model_name}", "groq"
         else:
