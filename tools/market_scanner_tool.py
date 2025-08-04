@@ -22,14 +22,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 class DynamicMarketScannerTool(BaseTool):
-    """📈 Dynamic market scanner that automatically discovers trending stocks and sectors"""
+    """📈 Dynamic market scanner that automatically discovers trending stocks and sectors with focus on Indian markets"""
     
     name: str = "dynamic_market_scanner"
     description: str = """
     Dynamically scans the market to automatically discover and analyze trending stocks and sectors.
+    Primarily focuses on Indian markets (NSE/BSE) with comprehensive coverage of Indian stocks, sectors, and indices.
     Uses intelligent algorithms to find top performers without predefined lists.
     Input should be the number of days to look back (default: 5 days).
-    Returns comprehensive market analysis with automatically discovered top performers.
+    Returns comprehensive market analysis with automatically discovered top performers, emphasizing Indian market opportunities.
     """
     max_workers: int = Field(default=10, description="Number of parallel workers for data fetching")
     session: Optional[requests.Session] = Field(default=None, exclude=True)
@@ -43,11 +44,11 @@ class DynamicMarketScannerTool(BaseTool):
         })
     
     def _run(self, days_back: int = 5) -> Dict[str, Any]:
-        """Run dynamic market scan for top performers"""
+        """Run dynamic Indian market scan for top performers"""
         try:
-            print(f"🔍 Dynamically scanning market for top performers (last {days_back} days)...")
+            print(f"🔍 Dynamically scanning Indian markets for top performers (last {days_back} days)...")
             
-            # Discover trending stocks and sectors dynamically
+            # Discover trending Indian stocks and sectors dynamically
             discovered_data = self._discover_market_data(days_back)
             
             # Analyze performance
@@ -58,7 +59,8 @@ class DynamicMarketScannerTool(BaseTool):
             return {
                 "scan_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "days_analyzed": days_back,
-                "discovery_method": "Dynamic Market Scanner (Parallel)",
+                "discovery_method": "Dynamic Indian Market Scanner (Parallel)",
+                "market_focus": "Indian Markets (NSE/BSE)",
                 "top_performing_stocks": top_stocks,
                 "top_performing_sectors": top_sectors,
                 "market_insights": market_insights,
@@ -71,15 +73,15 @@ class DynamicMarketScannerTool(BaseTool):
             }
             
         except Exception as e:
-            print(f"❌ Dynamic market scan failed: {e}")
+            print(f"❌ Dynamic Indian market scan failed: {e}")
             return {
-                "error": f"Dynamic market scan failed: {str(e)}",
+                "error": f"Dynamic Indian market scan failed: {str(e)}",
                 "scan_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
     
     def _discover_market_data(self, days_back: int) -> Dict[str, Any]:
-        """Dynamically discover market data without predefined lists using parallel processing"""
-        print("🔍 Discovering market data dynamically with parallel processing...")
+        """Dynamically discover Indian market data using web scraping and intelligent algorithms"""
+        print("🔍 Discovering Indian market data dynamically with parallel processing...")
         
         # Calculate date range
         end_date = datetime.now()
@@ -91,60 +93,65 @@ class DynamicMarketScannerTool(BaseTool):
             'indices': {}
         }
         
-        # Dynamic stock discovery
+        # Dynamic Indian stock discovery
         discovered_stocks = self._discover_trending_stocks(days_back)
-        print(f"📊 Discovered {len(discovered_stocks)} trending stocks")
+        print(f"📊 Discovered {len(discovered_stocks)} Indian stocks dynamically")
         
         # Parallel data fetching for stocks
-        print("⚡ Fetching stock data in parallel...")
+        print("⚡ Fetching Indian stock data in parallel...")
         stock_data = self._fetch_stock_data_parallel(discovered_stocks, start_date, end_date)
         market_data['stocks'] = stock_data
         
-        # Dynamic sector discovery
+        # Dynamic Indian sector discovery
         discovered_sectors = self._discover_sector_indices()
-        print(f"📊 Discovered {len(discovered_sectors)} sector indices")
+        print(f"📊 Discovered {len(discovered_sectors)} Indian sector indices")
         
         # Parallel data fetching for sectors
-        print("⚡ Fetching sector data in parallel...")
+        print("⚡ Fetching Indian sector data in parallel...")
         sector_data = self._fetch_sector_data_parallel(discovered_sectors, start_date, end_date)
         market_data['sectors'] = sector_data
         
-        # Dynamic index discovery
+        # Dynamic Indian index discovery
         discovered_indices = self._discover_market_indices()
-        print(f"📊 Discovered {len(discovered_indices)} market indices")
+        print(f"📊 Discovered {len(discovered_indices)} Indian market indices")
         
         # Parallel data fetching for indices
-        print("⚡ Fetching index data in parallel...")
+        print("⚡ Fetching Indian index data in parallel...")
         index_data = self._fetch_index_data_parallel(discovered_indices, start_date, end_date)
         market_data['indices'] = index_data
         
         return market_data
     
     def _discover_trending_stocks(self, days_back: int) -> List[str]:
-        """Dynamically discover trending stocks using web scraping and market data"""
+        """Dynamically discover trending stocks with focus on Indian markets"""
         discovered_stocks = set()
         
-        # Strategy 1: Web scraping for trending stocks
-        print("🔍 Strategy 1: Web scraping for trending stocks...")
+        # Strategy 1: Indian market specific discovery
+        print("🔍 Strategy 1: Indian market specific discovery...")
+        indian_discovered = self._discover_indian_stocks()
+        discovered_stocks.update(indian_discovered)
+        
+        # Strategy 2: Web scraping for trending stocks (including Indian)
+        print("🔍 Strategy 2: Web scraping for trending stocks...")
         web_discovered = self._scrape_trending_stocks()
         discovered_stocks.update(web_discovered)
         
-        # Strategy 2: Market screener API approach
-        print("🔍 Strategy 2: Market screener approach...")
+        # Strategy 3: Market screener API approach (Indian focus)
+        print("🔍 Strategy 3: Market screener approach (Indian focus)...")
         screener_discovered = self._screener_discover_stocks()
         discovered_stocks.update(screener_discovered)
         
-        # Strategy 3: High volume and momentum discovery
-        print("🔍 Strategy 3: High volume and momentum discovery...")
+        # Strategy 4: High volume and momentum discovery (Indian stocks)
+        print("🔍 Strategy 4: High volume and momentum discovery (Indian focus)...")
         momentum_discovered = self._discover_momentum_stocks(days_back)
         discovered_stocks.update(momentum_discovered)
         
-        # Strategy 4: Market cap based discovery
-        print("🔍 Strategy 4: Market cap based discovery...")
-        marketcap_discovered = self._discover_by_market_cap()
+        # Strategy 5: Indian market cap based discovery
+        print("🔍 Strategy 5: Indian market cap based discovery...")
+        marketcap_discovered = self._discover_indian_market_cap()
         discovered_stocks.update(marketcap_discovered)
         
-        return list(discovered_stocks)[:40]  # Limit to 40 for performance
+        return list(discovered_stocks)[:50]  # Increased limit for better Indian market coverage
     
     def _scrape_trending_stocks(self) -> List[str]:
         """Scrape trending stocks from financial websites in parallel"""
@@ -212,124 +219,297 @@ class DynamicMarketScannerTool(BaseTool):
         return discovered
     
     def _discover_momentum_stocks(self, days_back: int) -> List[str]:
-        """Discover stocks with high momentum and volume"""
+        """Dynamically discover Indian stocks with high momentum and volume"""
         discovered = []
         
         try:
-            # Use S&P 500 as a starting point for discovery
-            sp500 = yf.Ticker("^GSPC")
-            sp500_components = self._get_sp500_components()
+            # Strategy 1: Analyze Indian indices for momentum stocks
+            indian_indices = ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT', '^CNXPHARMA']
             
-            # Sample from S&P 500 components
-            sample_size = min(50, len(sp500_components))
-            sampled_stocks = random.sample(sp500_components, sample_size)
-            
-            for symbol in sampled_stocks:
+            for index_symbol in indian_indices:
                 try:
-                    ticker = yf.Ticker(symbol)
-                    hist = ticker.history(period=f"{days_back + 2}d")
+                    # Get index data to understand market momentum
+                    index_ticker = yf.Ticker(index_symbol)
+                    index_hist = index_ticker.history(period=f"{days_back + 2}d")
                     
-                    if not hist.empty and len(hist) > 1:
-                        # Check for momentum
-                        recent_volume = hist['Volume'].iloc[-1]
-                        avg_volume = hist['Volume'].mean()
-                        price_change = abs((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0])
+                    if not index_hist.empty and len(index_hist) > 1:
+                        # If index shows momentum, search for related stocks
+                        index_change = ((index_hist['Close'].iloc[-1] - index_hist['Close'].iloc[0]) / index_hist['Close'].iloc[0]) * 100
                         
-                        # Add if meets momentum criteria
-                        if recent_volume > avg_volume * 0.8 or price_change > 0.015:  # 1.5% movement
-                            discovered.append(symbol)
+                        if abs(index_change) > 2:  # If index moved more than 2%
+                            # Search for stocks in this sector
+                            index_name = index_ticker.info.get('longName', '')
+                            keywords = index_name.split()[:2]  # Use first 2 keywords
                             
+                            for keyword in keywords:
+                                try:
+                                    search_results = yf.Tickers(keyword)
+                                    if hasattr(search_results, 'tickers'):
+                                        for ticker in search_results.tickers[:8]:
+                                            if ticker.ticker.endswith('.NS'):
+                                                discovered.append(ticker.ticker)
+                                except:
+                                    continue
+                                    
                 except Exception as e:
+                    print(f"⚠️ Index {index_symbol} momentum analysis failed: {e}")
                     continue
-                    
+            
+            # Strategy 2: Search for high-volume Indian stocks
+            volume_search_terms = ["volume", "active", "gainers", "losers", "momentum"]
+            
+            for term in volume_search_terms:
+                try:
+                    search_results = yf.Tickers(term)
+                    if hasattr(search_results, 'tickers'):
+                        for ticker in search_results.tickers[:10]:
+                            if ticker.ticker.endswith('.NS'):
+                                discovered.append(ticker.ticker)
+                except Exception as e:
+                    print(f"⚠️ Volume search for '{term}' failed: {e}")
+                    continue
+            
+            # Strategy 3: Use web scraping for trending Indian stocks
+            trending_indian = self._scrape_trending_indian_stocks()
+            discovered.extend(trending_indian)
+            
         except Exception as e:
             print(f"⚠️ Momentum discovery failed: {e}")
         
-        return discovered
+        return list(set(discovered))  # Remove duplicates
     
-    def _discover_by_market_cap(self) -> List[str]:
-        """Discover stocks by market capitalization"""
+    def _scrape_trending_indian_stocks(self) -> List[str]:
+        """Scrape trending Indian stocks from various sources"""
         discovered = []
         
-        try:
-            # Try to get large cap stocks
-            large_cap_symbols = self._get_large_cap_stocks()
-            discovered.extend(large_cap_symbols)
+        def scrape_indian_trending():
+            try:
+                # Try to scrape trending Indian stocks
+                url = "https://in.finance.yahoo.com/trending-tickers"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    # Look for Indian stock symbols
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:15]
+            except Exception as e:
+                print(f"⚠️ Indian trending scraping failed: {e}")
+            return []
+        
+        def scrape_indian_gainers():
+            try:
+                # Try to scrape Indian gainers
+                url = "https://www.moneycontrol.com/india/stockpricequote/gainers"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:15]
+            except Exception as e:
+                print(f"⚠️ Indian gainers scraping failed: {e}")
+            return []
+        
+        # Use ThreadPoolExecutor for parallel scraping
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_trending = executor.submit(scrape_indian_trending)
+            future_gainers = executor.submit(scrape_indian_gainers)
             
-            # Try to get mid cap stocks
-            mid_cap_symbols = self._get_mid_cap_stocks()
-            discovered.extend(mid_cap_symbols)
-            
-        except Exception as e:
-            print(f"⚠️ Market cap discovery failed: {e}")
+            # Collect results
+            discovered.extend(future_trending.result())
+            discovered.extend(future_gainers.result())
         
         return discovered
     
-    def _get_sp500_components(self) -> List[str]:
-        """Get S&P 500 components dynamically"""
-        try:
-            # Try to get S&P 500 components from Wikipedia
-            url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-            response = requests.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                table = soup.find('table', {'class': 'wikitable'})
+    def _discover_indian_stocks(self) -> List[str]:
+        """Dynamically discover Indian stocks using web scraping and market data"""
+        discovered = []
+        
+        # Strategy 1: Scrape Indian market websites
+        print("🔍 Scraping Indian market websites...")
+        indian_web_discovered = self._scrape_indian_market_websites()
+        discovered.extend(indian_web_discovered)
+        
+        # Strategy 2: Use yfinance search for Indian stocks
+        print("🔍 Searching for Indian stocks via yfinance...")
+        indian_search_discovered = self._search_indian_stocks_yfinance()
+        discovered.extend(indian_search_discovered)
+        
+        # Strategy 3: Analyze Indian indices to find components
+        print("🔍 Analyzing Indian indices for components...")
+        indian_index_discovered = self._discover_from_indian_indices()
+        discovered.extend(indian_index_discovered)
+        
+        return discovered
+    
+    def _scrape_indian_market_websites(self) -> List[str]:
+        """Scrape Indian market websites for trending stocks"""
+        discovered = []
+        
+        def scrape_moneycontrol():
+            try:
+                url = "https://www.moneycontrol.com/india/stockpricequote/"
+                response = self.session.get(url, timeout=10)
                 
-                if table:
-                    symbols = []
-                    rows = table.find_all('tr')[1:]  # Skip header
-                    for row in rows:
-                        cells = row.find_all('td')
-                        if len(cells) > 0:
-                            symbol = cells[0].text.strip()
-                            if symbol and len(symbol) <= 5:
-                                symbols.append(symbol)
-                    return symbols[:100]  # Return first 100
-        except:
-            pass
+                if response.status_code == 200:
+                    # Look for stock symbols in the page
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:30]
+            except Exception as e:
+                print(f"⚠️ MoneyControl scraping failed: {e}")
+            return []
         
-        # Fallback: return some common large cap stocks
-        return ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'JPM', 'JNJ']
-    
-    def _get_large_cap_stocks(self) -> List[str]:
-        """Get large cap stocks dynamically"""
-        try:
-            # Try to get from a financial API or website
-            url = "https://finance.yahoo.com/screener/predefined/large_cap"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=10)
+        def scrape_nse_india():
+            try:
+                url = "https://www.nseindia.com/get-quotes/equity"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    # Look for stock symbols
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:25]
+            except Exception as e:
+                print(f"⚠️ NSE India scraping failed: {e}")
+            return []
+        
+        def scrape_yahoo_india():
+            try:
+                url = "https://in.finance.yahoo.com/trending-tickers"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    # Look for Indian stock symbols
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:20]
+            except Exception as e:
+                print(f"⚠️ Yahoo India scraping failed: {e}")
+            return []
+        
+        # Use ThreadPoolExecutor for parallel scraping
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_moneycontrol = executor.submit(scrape_moneycontrol)
+            future_nse = executor.submit(scrape_nse_india)
+            future_yahoo = executor.submit(scrape_yahoo_india)
             
-            if response.status_code == 200:
-                symbols = re.findall(r'[A-Z]{1,5}\.[A-Z]{2}|[A-Z]{1,5}', response.text)
-                return symbols[:20]
-        except:
-            pass
+            # Collect results
+            discovered.extend(future_moneycontrol.result())
+            discovered.extend(future_nse.result())
+            discovered.extend(future_yahoo.result())
         
-        return []
+        return list(set(discovered))  # Remove duplicates
     
-    def _get_mid_cap_stocks(self) -> List[str]:
-        """Get mid cap stocks dynamically"""
-        try:
-            # Try to get from a financial API or website
-            url = "https://finance.yahoo.com/screener/predefined/mid_cap"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=10)
-            
-            if response.status_code == 200:
-                symbols = re.findall(r'[A-Z]{1,5}\.[A-Z]{2}|[A-Z]{1,5}', response.text)
-                return symbols[:20]
-        except:
-            pass
+    def _search_indian_stocks_yfinance(self) -> List[str]:
+        """Search for Indian stocks using yfinance search functionality"""
+        discovered = []
         
-        return []
+        # Indian market related search terms
+        search_terms = [
+            "NSE", "BSE", "Indian", "India", "Mumbai", "Delhi", "Bombay",
+            "Sensex", "Nifty", "Bank Nifty", "CNX", "NSEI", "BSESN"
+        ]
+        
+        for term in search_terms:
+            try:
+                # Use yfinance search
+                search_results = yf.Tickers(term)
+                if hasattr(search_results, 'tickers'):
+                    for ticker in search_results.tickers[:10]:
+                        if ticker.ticker.endswith('.NS') or ticker.ticker.endswith('.BO'):
+                            discovered.append(ticker.ticker)
+            except Exception as e:
+                print(f"⚠️ yfinance search for '{term}' failed: {e}")
+                continue
+        
+        return list(set(discovered))  # Remove duplicates
+    
+    def _discover_from_indian_indices(self) -> List[str]:
+        """Discover stocks by analyzing Indian indices"""
+        discovered = []
+        
+        # Major Indian indices to analyze
+        indian_indices = ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT', '^CNXPHARMA']
+        
+        for index_symbol in indian_indices:
+            try:
+                # Get index info and try to find related stocks
+                index_ticker = yf.Ticker(index_symbol)
+                
+                # Search for stocks that might be part of this index
+                # This is a heuristic approach since we can't directly get index components
+                index_name = index_ticker.info.get('longName', '')
+                
+                # Extract keywords from index name and search for related stocks
+                keywords = index_name.split()
+                for keyword in keywords[:3]:  # Use first 3 keywords
+                    try:
+                        search_results = yf.Tickers(keyword)
+                        if hasattr(search_results, 'tickers'):
+                            for ticker in search_results.tickers[:5]:
+                                if ticker.ticker.endswith('.NS'):
+                                    discovered.append(ticker.ticker)
+                    except:
+                        continue
+                        
+            except Exception as e:
+                print(f"⚠️ Index {index_symbol} analysis failed: {e}")
+                continue
+        
+        return list(set(discovered))  # Remove duplicates
+    
+    def _discover_indian_market_cap(self) -> List[str]:
+        """Dynamically discover Indian stocks by market cap using web scraping"""
+        discovered = []
+        
+        def scrape_large_cap_indian():
+            try:
+                url = "https://www.moneycontrol.com/india/stockpricequote/large-cap"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:15]
+            except Exception as e:
+                print(f"⚠️ Large cap Indian scraping failed: {e}")
+            return []
+        
+        def scrape_mid_cap_indian():
+            try:
+                url = "https://www.moneycontrol.com/india/stockpricequote/mid-cap"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:15]
+            except Exception as e:
+                print(f"⚠️ Mid cap Indian scraping failed: {e}")
+            return []
+        
+        def scrape_small_cap_indian():
+            try:
+                url = "https://www.moneycontrol.com/india/stockpricequote/small-cap"
+                response = self.session.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    symbols = re.findall(r'[A-Z]{2,10}\.NS', response.text)
+                    return symbols[:10]
+            except Exception as e:
+                print(f"⚠️ Small cap Indian scraping failed: {e}")
+            return []
+        
+        # Use ThreadPoolExecutor for parallel scraping
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_large = executor.submit(scrape_large_cap_indian)
+            future_mid = executor.submit(scrape_mid_cap_indian)
+            future_small = executor.submit(scrape_small_cap_indian)
+            
+            # Collect results
+            discovered.extend(future_large.result())
+            discovered.extend(future_mid.result())
+            discovered.extend(future_small.result())
+        
+        return list(set(discovered))  # Remove duplicates
     
     def _discover_sector_indices(self) -> Dict[str, str]:
-        """Dynamically discover sector indices in parallel"""
+        """Dynamically discover sector indices with focus on Indian markets"""
         discovered_sectors = {}
         
         def fetch_sector_info(etf):
@@ -343,19 +523,22 @@ class DynamicMarketScannerTool(BaseTool):
             return None
         
         try:
-            # Sector ETFs to check
-            sector_etfs = [
+            # Indian sector indices (prioritized)
+            indian_sectors = [
+                '^NSEBANK', '^CNXIT', '^CNXPHARMA', '^CNXMETAL', '^CNXFMCG',
+                '^CNXAUTO', '^CNXREALTY', '^CNXMEDIA', '^CNXENERGY', '^CNXINFRA',
+                '^CNXCONSUM', '^CNXFINANCE', '^CNXHEALTHCARE', '^CNXPSUBANK',
+                '^CNXSMALLCAP', '^CNXMIDCAP', '^CNX100', '^CNX200', '^CNX500'
+            ]
+            
+            # Global sector ETFs (secondary priority)
+            global_sector_etfs = [
                 'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLP', 'XLY', 'XLU', 'XLRE', 'XLB',
                 'VGT', 'VFH', 'VDE', 'VHT', 'VIS', 'VDC', 'VCR', 'VPU', 'VNQ', 'VAW'
             ]
             
-            # Indian sector indices
-            indian_sectors = [
-                '^NSEBANK', '^CNXIT', '^CNXPHARMA', '^CNXMETAL', '^CNXFMCG',
-                '^CNXAUTO', '^CNXREALTY', '^CNXMEDIA', '^CNXENERGY', '^CNXINFRA'
-            ]
-            
-            all_sectors = sector_etfs + indian_sectors
+            # Prioritize Indian sectors first, then global
+            all_sectors = indian_sectors + global_sector_etfs
             
             # Use ThreadPoolExecutor for parallel discovery
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -374,7 +557,7 @@ class DynamicMarketScannerTool(BaseTool):
         return discovered_sectors
     
     def _discover_market_indices(self) -> Dict[str, str]:
-        """Dynamically discover market indices in parallel"""
+        """Dynamically discover market indices with focus on Indian markets"""
         discovered_indices = {}
         
         def fetch_index_info(index):
@@ -388,15 +571,21 @@ class DynamicMarketScannerTool(BaseTool):
             return None
         
         try:
-            # Global indices
+            # Indian indices (prioritized)
+            indian_indices = [
+                '^NSEI', '^BSESN', '^NSEBANK', '^CNXIT', '^CNXPHARMA', 
+                '^CNXMETAL', '^CNXFMCG', '^CNXAUTO', '^CNXREALTY', '^CNXMEDIA',
+                '^CNXENERGY', '^CNXINFRA', '^CNX100', '^CNX200', '^CNX500',
+                '^CNXSMALLCAP', '^CNXMIDCAP', '^CNXCONSUM', '^CNXFINANCE'
+            ]
+            
+            # Global indices (secondary priority)
             global_indices = [
                 '^GSPC', '^DJI', '^IXIC', '^RUT', '^VIX', '^FTSE', '^GDAXI', '^FCHI'
             ]
             
-            # Indian indices
-            indian_indices = ['^NSEI', '^BSESN']
-            
-            all_indices = global_indices + indian_indices
+            # Prioritize Indian indices first, then global
+            all_indices = indian_indices + global_indices
             
             # Use ThreadPoolExecutor for parallel discovery
             with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -619,27 +808,34 @@ class DynamicMarketScannerTool(BaseTool):
         return total_score if price_change_pct > 0 else -total_score
     
     def _generate_market_insights(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate market insights from the data"""
+        """Generate Indian market insights from the data"""
         insights = {
             'market_sentiment': 'neutral',
             'trending_sectors': [],
             'key_observations': [],
-            'risk_level': 'medium'
+            'risk_level': 'medium',
+            'indian_market_focus': True
         }
         
-        # Analyze sector performance
+        # Analyze Indian sector performance
         if market_data['sectors']:
             sector_changes = []
+            indian_sector_count = 0
+            
             for symbol, data in market_data['sectors'].items():
                 try:
                     hist = data['data']
                     if len(hist) >= 2:
                         change_pct = ((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0]) * 100
-                        sector_changes.append((data['name'], change_pct))
+                        sector_changes.append((data['name'], change_pct, symbol))
+                        
+                        # Count Indian sectors
+                        if symbol.startswith('^CNX') or symbol.startswith('^NSE'):
+                            indian_sector_count += 1
                 except:
                     continue
             
-            # Determine market sentiment
+            # Determine market sentiment based on Indian sectors
             positive_sectors = len([s for s in sector_changes if s[1] > 0])
             total_sectors = len(sector_changes)
             
@@ -648,29 +844,53 @@ class DynamicMarketScannerTool(BaseTool):
             elif positive_sectors / total_sectors < 0.3:
                 insights['market_sentiment'] = 'bearish'
             
-            # Get trending sectors
+            # Get trending Indian sectors
             sector_changes.sort(key=lambda x: x[1], reverse=True)
-            insights['trending_sectors'] = [s[0] for s in sector_changes[:3]]
+            indian_trending = [s[0] for s in sector_changes if s[2].startswith('^CNX') or s[2].startswith('^NSE')][:3]
+            insights['trending_sectors'] = indian_trending
+            
+            # Add Indian market specific observations
+            if indian_sector_count > 0:
+                insights['key_observations'].append(f"Analyzed {indian_sector_count} Indian sector indices")
         
-        # Generate key observations
+        # Generate Indian market specific observations
         if market_data['stocks']:
             stock_changes = []
+            indian_stock_count = 0
+            
             for symbol, data in market_data['stocks'].items():
                 try:
                     hist = data['data']
                     if len(hist) >= 2:
                         change_pct = ((hist['Close'].iloc[-1] - hist['Close'].iloc[0]) / hist['Close'].iloc[0]) * 100
-                        stock_changes.append((symbol, change_pct))
+                        stock_changes.append((symbol, change_pct, data['name']))
+                        
+                        # Count Indian stocks
+                        if symbol.endswith('.NS'):
+                            indian_stock_count += 1
                 except:
                     continue
             
             if stock_changes:
                 avg_change = sum(c[1] for c in stock_changes) / len(stock_changes)
-                insights['key_observations'].append(f"Average stock performance: {avg_change:.2f}%")
+                insights['key_observations'].append(f"Average Indian stock performance: {avg_change:.2f}%")
                 
-                # Find most volatile stocks
-                volatile_stocks = sorted(stock_changes, key=lambda x: abs(x[1]), reverse=True)[:3]
-                insights['key_observations'].append(f"Most volatile: {', '.join([s[0] for s in volatile_stocks])}")
+                # Find most volatile Indian stocks
+                indian_stocks = [s for s in stock_changes if s[0].endswith('.NS')]
+                if indian_stocks:
+                    volatile_stocks = sorted(indian_stocks, key=lambda x: abs(x[1]), reverse=True)[:3]
+                    stock_names = [s[0].replace('.NS', '') for s in volatile_stocks]
+                    insights['key_observations'].append(f"Most volatile Indian stocks: {', '.join(stock_names)}")
+                
+                # Add Indian market context
+                if indian_stock_count > 0:
+                    insights['key_observations'].append(f"Scanned {indian_stock_count} Indian stocks across various sectors")
+        
+        # Add Indian market specific risk assessment
+        if insights['market_sentiment'] == 'bullish':
+            insights['risk_level'] = 'low'
+        elif insights['market_sentiment'] == 'bearish':
+            insights['risk_level'] = 'high'
         
         return insights
     
