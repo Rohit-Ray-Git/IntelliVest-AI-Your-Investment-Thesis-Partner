@@ -43,12 +43,40 @@ st.set_page_config(
 st.markdown("""
 <style>
     .main-header {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        padding: 2.5rem;
+        border-radius: 15px;
         color: white;
         text-align: center;
         margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .main-header h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        letter-spacing: 2px;
+    }
+    
+    .main-header h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #f8f9fa;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    .main-header p {
+        font-size: 1.1rem;
+        font-weight: 400;
+        line-height: 1.6;
+        color: #e9ecef;
+        max-width: 800px;
+        margin: 0 auto;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     }
     
     .metric-card {
@@ -102,6 +130,65 @@ st.markdown("""
         transform: translateY(-2px);
         transition: all 0.3s ease;
     }
+    
+    /* Make tabs wider and better spaced */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0px;
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 15px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .stTabs [data-baseweb="tab-panel"] {
+        padding-top: 20px;
+    }
+    
+    /* Ensure full width layout */
+    .main .block-container {
+        max-width: 100%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    
+    /* Sidebar adjustments for wider layout */
+    .css-1d391kg {
+        width: 300px;
+    }
+    
+    /* Main content area adjustments */
+    .css-1v0mbdj {
+        width: calc(100% - 300px);
+    }
+    
+    /* Additional tab styling for better fit */
+    .stTabs > div {
+        width: 100%;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] > div {
+        width: 100%;
+        display: flex;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] > div > div {
+        flex: 1;
+        text-align: center;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 1200px) {
+        .stTabs [data-baseweb="tab"] {
+            font-size: 12px;
+            padding: 8px 10px;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -113,16 +200,11 @@ class IntelliVestStreamlitApp:
         self.system = None
         self.analysis_history = []
         
-        # Initialize session state for metrics
-        if 'metrics_initialized' not in st.session_state:
-            st.session_state.metrics_initialized = False
-            st.session_state.total_analyses = 0
-            st.session_state.successful_analyses = 0
-            st.session_state.failed_analyses = 0
-            st.session_state.average_execution_time = 0.0
-            st.session_state.available_models = 8
-            st.session_state.execution_times = []
-            st.session_state.metrics_updated = False  # Flag to track metrics updates
+        # Initialize session state for market highlights caching
+        if 'market_highlights_loaded' not in st.session_state:
+            st.session_state.market_highlights_loaded = False
+            st.session_state.market_highlights_data = None
+            st.session_state.market_highlights_timestamp = None
         
         self.initialize_system()
     
@@ -138,121 +220,21 @@ class IntelliVestStreamlitApp:
     
     def update_metrics_after_analysis(self, result):
         """Update metrics after an analysis is completed"""
-        st.session_state.total_analyses += 1
-        
-        if result and result.status == "success":
-            st.session_state.successful_analyses += 1
-        else:
-            st.session_state.failed_analyses += 1
-        
-        if result and hasattr(result, 'execution_time'):
-            st.session_state.execution_times.append(result.execution_time)
-            # Calculate average execution time
-            if st.session_state.execution_times:
-                st.session_state.average_execution_time = sum(st.session_state.execution_times) / len(st.session_state.execution_times)
+        # This method is kept for compatibility but metrics are no longer displayed
+        pass
     
     def update_metrics_from_system(self):
         """Update session state metrics from system status"""
-        if self.system:
-            try:
-                status = self.system.get_system_status()
-                metrics = status.get('metrics', {})
-                
-                # Store old values for comparison
-                old_total = st.session_state.total_analyses
-                old_successful = st.session_state.successful_analyses
-                
-                # Update metrics
-                st.session_state.total_analyses = metrics.get('total_analyses', 0)
-                st.session_state.successful_analyses = metrics.get('successful_analyses', 0)
-                st.session_state.failed_analyses = metrics.get('failed_analyses', 0)
-                st.session_state.average_execution_time = metrics.get('average_execution_time', 0.0)
-                
-                # Get available models from fallback system
-                fallback_status = status.get('advanced_fallback_status', {})
-                st.session_state.available_models = fallback_status.get('available_models', 8)
-                
-                st.session_state.metrics_initialized = True
-                
-                # Check if metrics changed
-                if (old_total != st.session_state.total_analyses or 
-                    old_successful != st.session_state.successful_analyses):
-                    print(f"📊 Metrics updated: {old_total}→{st.session_state.total_analyses} analyses, {old_successful}→{st.session_state.successful_analyses} successful")
-                else:
-                    print("📊 Metrics refreshed (no changes)")
-                    
-            except Exception as e:
-                print(f"⚠️ Could not update metrics from system: {e}")
-                st.error(f"⚠️ Could not update metrics: {e}")
-        else:
-            st.warning("⚠️ System not available for metrics update")
-    
-    def render_metrics(self):
-        """Render system metrics"""
-        # Show success message if metrics were just updated
-        if st.session_state.metrics_updated:
-            st.success("✅ Metrics updated from system!")
-        
-        # Add refresh button
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 0.5])
-        
-        with col1:
-            st.metric(
-                "Total Analyses",
-                st.session_state.total_analyses,
-                help="Total number of analyses performed"
-            )
-        
-        with col2:
-            total = st.session_state.total_analyses
-            successful = st.session_state.successful_analyses
-            success_rate = f"{successful}/{total}" if total > 0 else "0/0"
-            st.metric(
-                "Success Rate",
-                success_rate,
-                help="Successful vs total analyses"
-            )
-        
-        with col3:
-            st.metric(
-                "Avg Execution Time",
-                f"{st.session_state.average_execution_time:.1f}s",
-                help="Average execution time per analysis"
-            )
-        
-        with col4:
-            st.metric(
-                "Available Models",
-                st.session_state.available_models,
-                help="Number of available AI models"
-            )
-        
-        with col5:
-            if st.button("🔄", help="Refresh metrics from system"):
-                # Set flag to update metrics
-                st.session_state.metrics_updated = True
-                # Update metrics from system
-                self.update_metrics_from_system()
-                # Reset the flag
-                st.session_state.metrics_updated = False
-        
-        # Add a small reset option for testing
-        if st.session_state.total_analyses > 0:
-            if st.button("🗑️ Reset Metrics", help="Reset all metrics to zero"):
-                st.session_state.total_analyses = 0
-                st.session_state.successful_analyses = 0
-                st.session_state.failed_analyses = 0
-                st.session_state.average_execution_time = 0.0
-                st.session_state.execution_times = []
-                st.success("��️ Metrics reset!")
+        # This method is kept for compatibility but metrics are no longer displayed
+        pass
     
     def render_header(self):
         """Render the main header"""
         st.markdown("""
         <div class="main-header">
             <h1>🚀 IntelliVest AI</h1>
-            <h3>Your Dynamic Investment Thesis Partner</h3>
-            <p>Advanced AI-Powered Market Discovery with Parallel Processing</p>
+            <h3>Your Intelligent Investment Thesis Partner</h3>
+            <p>Revolutionize Investment Analysis with AI-Powered Market Intelligence & Lightning-Fast Parallel Processing</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -310,11 +292,12 @@ class IntelliVestStreamlitApp:
     def render_analysis_form(self, config):
         """Render the analysis input form"""
         st.markdown("## 📈 Investment Analysis")
+        st.info("💡 **Tip:** Use the market insights above to identify trending stocks for analysis!")
         
         # Company input
         company_name = st.text_input(
             "🏢 Company Name or Symbol",
-            placeholder="e.g., Apple Inc., AAPL, Tesla, TSLA",
+            placeholder="e.g., Apple Inc., AAPL, Tesla, TSLA, RELIANCE.NS",
             help="Enter the company name or stock symbol to analyze"
         )
         
@@ -971,100 +954,106 @@ class IntelliVestStreamlitApp:
         except Exception as e:
             st.warning(f"Could not load system status: {e}")
     
-    def run(self):
-        """Main application runner"""
-        # Render header
-        self.render_header()
-        
-        # Render sidebar and get configuration
-        config = self.render_sidebar()
-        
-        # Render metrics
-        self.render_metrics()
-        
-        # Main content area
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Analysis", "📈 Market Discovery", "📚 History", "🔧 Status", "ℹ️ About"])
-        
-        with tab1:
-            # Render analysis form
-            form_data = self.render_analysis_form(config)
-            
-            # Handle analysis execution
-            if form_data["run_analysis"] and form_data["company_name"]:
-                company_name = form_data["company_name"].strip()
+    def load_market_highlights(self):
+        """Load market highlights once and cache them"""
+        if not st.session_state.market_highlights_loaded or st.session_state.market_highlights_data is None:
+            try:
+                with st.spinner("📊 Loading market highlights..."):
+                    market_data = self.system.get_market_insights(days_back=5)
                 
-                if company_name:
-                    # Show progress
-                    progress_bar = st.progress(0)
-                    status_text = st.empty()
-                    
-                    try:
-                        # Run analysis
-                        status_text.text("🚀 Starting analysis...")
-                        progress_bar.progress(10)
-                        
-                        # Run async analysis
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        
-                        status_text.text("📊 Gathering data...")
-                        progress_bar.progress(30)
-                        
-                        result = loop.run_until_complete(
-                            self.run_analysis_async(company_name, config, form_data)
-                        )
-                        
-                        progress_bar.progress(80)
-                        status_text.text("📝 Processing results...")
-                        
-                        # Add to history
-                        if result:
-                            self.analysis_history.append(result)
-                        
-                        # Update metrics after analysis
-                        self.update_metrics_after_analysis(result)
-                        
-                        progress_bar.progress(100)
-                        status_text.text("✅ Analysis complete!")
-                        
-                        # Clear any previous error messages
-                        st.empty()
-                        
-                        # Render results
-                        self.render_analysis_results(result)
-                        
-                    except Exception as e:
-                        # Clear progress indicators
-                        progress_bar.progress(0)
-                        status_text.text("❌ Analysis failed")
-                        
-                        # Show error in a clean way
-                        st.error(f"❌ Analysis failed: {str(e)}")
-                        
-                        # Don't show the error again in results
-                        result = None
-                    
-                    finally:
-                        # Clean up
-                        if 'loop' in locals():
-                            loop.close()
+                if "error" not in market_data:
+                    st.session_state.market_highlights_data = market_data
+                    st.session_state.market_highlights_timestamp = datetime.now()
+                    st.session_state.market_highlights_loaded = True
+                    print("✅ Market highlights loaded and cached")
                 else:
-                    st.warning("⚠️ Please enter a company name")
+                    print(f"❌ Market highlights error: {market_data['error']}")
+                    return None
+            except Exception as e:
+                print(f"❌ Could not load market highlights: {e}")
+                return None
         
-        with tab2:
-            self.render_market_overview()
+        return st.session_state.market_highlights_data
+    
+    def render_market_discovery_section(self):
+        """Render a simplified market discovery section with only top performers and sectors"""
+        st.markdown("## 📈 Market Highlights")
         
-        with tab3:
-            self.render_history()
+        # Load market highlights (cached)
+        market_data = self.load_market_highlights()
         
-        with tab4:
-            self.render_system_status()
+        if market_data is None:
+            st.error("❌ Could not load market highlights")
+            return
         
-        with tab5:
-            self.render_about()
+        # Show cache status
+        if st.session_state.market_highlights_timestamp:
+            cache_age = datetime.now() - st.session_state.market_highlights_timestamp
+            st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago")
+        
+        # Add refresh button
+        if st.button("🔄 Refresh Market Data", help="Update market highlights"):
+            st.session_state.market_highlights_loaded = False
+            st.session_state.market_highlights_data = None
+            st.rerun()
+        
+        # Top performing discovered stocks
+        top_stocks = market_data.get('top_performing_stocks', [])
+        if top_stocks:
+            st.markdown("### 🥇 Top 3 Discovered Performers")
+            cols = st.columns(3)
+            
+            for i, stock in enumerate(top_stocks[:3]):
+                with cols[i]:
+                    direction = "📈" if stock['price_change_pct'] > 0 else "📉"
+                    stock_symbol = stock['symbol'].replace('.NS', '')
+                    price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
+                    st.markdown(f"""
+                    <div style="padding: 1rem; border: 1px solid #ddd; border-radius: 10px; text-align: center;">
+                        <h4>{stock_symbol}</h4>
+                        <p><strong>{stock['name']}</strong></p>
+                        <p style="font-size: 1.5rem; color: {'green' if stock['price_change_pct'] > 0 else 'red'};">
+                            {direction} {stock['price_change_pct']:+.2f}%
+                        </p>
+                        <p>{price_symbol}{stock['current_price']}</p>
+                        <p><small>{stock['sector']}</small></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # Top performing discovered sectors
+        top_sectors = market_data.get('top_performing_sectors', [])
+        if top_sectors:
+            st.markdown("### 🏆 Top Performing Discovered Sectors")
+            
+            # Create sector chart
+            sector_data = []
+            for sector in top_sectors[:5]:
+                sector_data.append({
+                    "Sector": sector['name'],
+                    "Performance": sector['price_change_pct'],
+                    "Volatility": sector['volatility']
+                })
+            
+            if sector_data:
+                df_sectors = pd.DataFrame(sector_data)
+                
+                # Create bar chart
+                fig = px.bar(
+                    df_sectors,
+                    x='Sector',
+                    y='Performance',
+                    color='Performance',
+                    title="Discovered Sector Performance (Last 5 Days)",
+                    color_continuous_scale=['red', 'yellow', 'green']
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # Add a separator before the analysis form
+        st.markdown("---")
     
     def render_market_overview(self):
-        """Render the dynamic market overview tab"""
+        """Render the full dynamic market overview tab"""
         st.markdown("## 📈 Dynamic Market Overview")
         
         # Add refresh button for market data
@@ -1075,13 +1064,20 @@ class IntelliVestStreamlitApp:
         
         with col2:
             if st.button("🔄 Refresh Market Data", help="Update dynamic market data"):
+                st.session_state.market_highlights_loaded = False
+                st.session_state.market_highlights_data = None
                 st.rerun()
         
-        # Get market insights
+        # Get market insights (use cached data if available, otherwise load fresh)
         if self.system:
             try:
-                with st.spinner("📊 Dynamically discovering market data..."):
-                    market_data = self.system.get_market_insights(days_back=5)
+                # Use cached data if available, otherwise load fresh
+                if st.session_state.market_highlights_loaded and st.session_state.market_highlights_data:
+                    market_data = st.session_state.market_highlights_data
+                    st.info("📊 Using cached market data (click refresh to update)")
+                else:
+                    with st.spinner("📊 Dynamically discovering market data..."):
+                        market_data = self.system.get_market_insights(days_back=5)
                 
                 if "error" in market_data:
                     st.error(f"❌ Market data error: {market_data['error']}")
@@ -1228,6 +1224,98 @@ class IntelliVestStreamlitApp:
                 st.info("Please try refreshing the market data or check your internet connection.")
         else:
             st.warning("⚠️ System not available for market data")
+    
+    def run(self):
+        """Main application runner"""
+        # Render header
+        self.render_header()
+        
+        # Render sidebar and get configuration
+        config = self.render_sidebar()
+        
+        # Main content area
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Analysis", "📈 Markets", "📚 History", "🔧 Status", "ℹ️ About"])
+        
+        with tab1:
+            # Render market discovery content at the top of analysis tab
+            self.render_market_discovery_section()
+            
+            # Render analysis form
+            form_data = self.render_analysis_form(config)
+            
+            # Handle analysis execution
+            if form_data["run_analysis"] and form_data["company_name"]:
+                company_name = form_data["company_name"].strip()
+                
+                if company_name:
+                    # Show progress
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    try:
+                        # Run analysis
+                        status_text.text("🚀 Starting analysis...")
+                        progress_bar.progress(10)
+                        
+                        # Run async analysis
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        
+                        status_text.text("📊 Gathering data...")
+                        progress_bar.progress(30)
+                        
+                        result = loop.run_until_complete(
+                            self.run_analysis_async(company_name, config, form_data)
+                        )
+                        
+                        progress_bar.progress(80)
+                        status_text.text("📝 Processing results...")
+                        
+                        # Add to history
+                        if result:
+                            self.analysis_history.append(result)
+                        
+                        # Update metrics after analysis
+                        self.update_metrics_after_analysis(result)
+                        
+                        progress_bar.progress(100)
+                        status_text.text("✅ Analysis complete!")
+                        
+                        # Clear any previous error messages
+                        st.empty()
+                        
+                        # Render results
+                        self.render_analysis_results(result)
+                        
+                    except Exception as e:
+                        # Clear progress indicators
+                        progress_bar.progress(0)
+                        status_text.text("❌ Analysis failed")
+                        
+                        # Show error in a clean way
+                        st.error(f"❌ Analysis failed: {str(e)}")
+                        
+                        # Don't show the error again in results
+                        result = None
+                    
+                    finally:
+                        # Clean up
+                        if 'loop' in locals():
+                            loop.close()
+                else:
+                    st.warning("⚠️ Please enter a company name")
+        
+        with tab2:
+            self.render_market_overview()
+        
+        with tab3:
+            self.render_history()
+        
+        with tab4:
+            self.render_system_status()
+        
+        with tab5:
+            self.render_about()
 
     def render_about(self):
         """Render about section"""
