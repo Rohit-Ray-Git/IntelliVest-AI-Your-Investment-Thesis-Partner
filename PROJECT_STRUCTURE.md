@@ -11,7 +11,7 @@ This document outlines the clean, organized structure of the IntelliVest AI proj
 ```
 IntelliVest-AI/
 ├── 🚀 production_integration.py      # Main production interface
-├── 🧪 test_production_integration.py # Comprehensive test suite
+├── 🌐 streamlit_app.py              # Web UI with integrated launcher
 ├── 📋 requirements.txt               # Python dependencies
 ├── 📖 README.md                      # Main documentation
 ├── 📁 PROJECT_STRUCTURE.md           # This file
@@ -19,7 +19,6 @@ IntelliVest-AI/
 ├── 🔧 .env                           # API configuration (create this)
 ├── 📄 .gitignore                     # Git ignore rules
 ├── 📄 LICENSE                        # MIT License
-├── 🌐 run_app.py                     # Web application launcher
 ├── 🤖 agents/                        # CrewAI agents
 ├── 🧠 llm/                          # LLM management
 ├── 🛠️ tools/                        # Custom tools
@@ -127,10 +126,16 @@ workflows/
 - **Features**: REST API endpoints for system integration
 - **Documentation**: Auto-generated API docs
 
-### **🌐 run_app.py**
-- **Purpose**: Web application launcher
-- **Features**: Starts both frontend and backend services
-- **Usage**: `python run_app.py`
+### **🌐 streamlit_app.py**
+- **Purpose**: Web application with integrated launcher
+- **Features**: 
+  - Integrated Streamlit launcher functionality
+  - Automatic port detection and management
+  - Professional investment analysis interface
+  - Real-time market discovery and analysis
+- **Usage**: 
+  - `python streamlit_app.py` (direct execution)
+  - `streamlit run streamlit_app.py` (Streamlit execution)
 
 ---
 
@@ -201,8 +206,14 @@ result = await intellivest_ai.analyze_company(request)
 
 ### **🌐 Web Interface Usage**
 ```bash
-python run_app.py
-# Access at http://localhost:8501
+# Method 1: Run directly (recommended)
+python streamlit_app.py
+
+# Method 2: Run with Streamlit
+streamlit run streamlit_app.py
+
+# The app will automatically find an available port
+# Access at http://localhost:8501 (or the port shown in terminal)
 ```
 
 ### **🧪 Testing Usage**

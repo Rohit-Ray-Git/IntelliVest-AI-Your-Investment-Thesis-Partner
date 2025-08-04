@@ -59,7 +59,7 @@ IntelliVest AI
 ```
 IntelliVest-AI/
 ├── 🚀 production_integration.py      # Main system interface (optimized)
-├── 🧪 test_production_integration.py # Comprehensive test suite
+├── 🌐 streamlit_app.py              # Web UI with integrated launcher
 ├── 📋 requirements.txt               # Python dependencies
 ├── 📖 README.md                      # This documentation
 ├── 📁 PROJECT_STRUCTURE.md           # Detailed structure guide
@@ -67,7 +67,7 @@ IntelliVest-AI/
 ├── 🔧 .env                           # API configuration
 ├── 📄 .gitignore                     # Git ignore rules
 ├── 📄 LICENSE                        # MIT License
-└── 🌐 run_app.py                     # Web application launcher
+└── 📊 financial_facts.py             # Investment wisdom & quotes
 ```
 
 ### **Module Organization**
@@ -456,61 +456,33 @@ class ProductionIntelliVestAI:
 
 ## 🚀 **Quick Start**
 
-### **1. Environment Setup**
+### **1. Clone and Setup**
 ```bash
-# Clone the repository
-git clone https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner.git
-cd IntelliVest-AI-Your-Investment-Thesis-Partner
-
-# Create virtual environment
+git clone <repository-url>
+cd IntelliVest-AI
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
 pip install -r requirements.txt
 ```
 
-### **2. API Configuration**
+### **2. Configure API Keys**
 Create a `.env` file with your API keys:
 ```env
-# Google Gemini API
 GOOGLE_API_KEY=your_gemini_api_key
-
-# Groq API (for fallbacks)
-OPENAI_API_KEY=your_groq_api_key
-OPENAI_API_BASE=https://api.groq.com/openai/v1
-
-# Alpha Vantage (financial data)
-ALPHAVANTAGE_API_KEY=your_alphavantage_key
-
-# Tavily API (web search)
+GROQ_API_KEY=your_groq_api_key
 TAVILY_API_KEY=your_tavily_key
 ```
 
-### **3. Basic Usage (Optimized)**
-```python
-from production_integration import ProductionIntelliVestAI, AnalysisRequest
+### **3. Launch the Application**
+```bash
+# Method 1: Run directly (recommended)
+python streamlit_app.py
 
-# Initialize the optimized system (with parallel processing)
-intellivest_ai = ProductionIntelliVestAI()  # Uses 10 parallel workers by default
-
-# Create analysis request
-request = AnalysisRequest(
-    company_name="Apple Inc.",
-    analysis_type="research",  # Options: research, sentiment, valuation, thesis, full
-    include_tools=True,
-    use_advanced_fallback=True
-)
-
-# Run optimized analysis (3.3x faster)
-result = await intellivest_ai.analyze_company(request)
-
-# View results
-print(f"Status: {result.status}")
-print(f"Execution Time: {result.execution_time:.2f}s")  # ~39 seconds vs 130+ seconds
-print(f"Confidence Score: {result.confidence_score:.2f}")
-print(f"Content: {result.content}")
+# Method 2: Run with Streamlit
+streamlit run streamlit_app.py
 ```
+
+The application will open in your browser automatically!
 
 ### **4. Advanced Usage with Custom Concurrency**
 ```python
@@ -624,10 +596,15 @@ This will test:
 
 Start the web application:
 ```bash
-python run_app.py
-```
+# Method 1: Run directly (recommended)
+python streamlit_app.py
 
-Access the interface at: `http://localhost:8501`
+# Method 2: Run with Streamlit
+streamlit run streamlit_app.py
+
+# The app will automatically find an available port (8501, 8502, etc.)
+# Access at http://localhost:8501 (or the port shown in terminal)
+```
 
 ## 🔌 **API Endpoints**
 

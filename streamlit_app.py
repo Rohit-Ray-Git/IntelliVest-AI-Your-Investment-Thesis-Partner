@@ -1,23 +1,93 @@
 #!/usr/bin/env python3
 """
-🚀 IntelliVest AI - Streamlit Web Interface
-===========================================
+🚀 IntelliVest AI - Streamlit Application
+=========================================
 
-Advanced Investment Analysis with Parallel Processing
-Professional UI with real-time analysis capabilities
+Advanced AI-Powered Investment Analysis with Parallel Processing
+Features:
+- Dynamic market discovery with parallel processing
+- Multi-agent investment analysis
+- Real-time quote rotation and progress indicators
+- Comprehensive analysis history
+- Professional investment thesis generation
 """
 
+import subprocess
+import sys
+import os
+from pathlib import Path
+
+def launch_streamlit():
+    """Launch the Streamlit app if run directly"""
+    print("🚀 Launching IntelliVest AI Streamlit App...")
+    print("=" * 50)
+    
+    # Get the current directory
+    current_dir = Path(__file__).parent
+    
+    print("🌐 Starting Streamlit server...")
+    print("📱 The app will open in your default browser")
+    print("🛑 Press Ctrl+C to stop the server")
+    print("-" * 50)
+    
+    # Try different ports if 8501 is busy
+    ports = [8501, 8502, 8503, 8504, 8505]
+    
+    for port in ports:
+        try:
+            print(f"🔄 Trying port {port}...")
+            # Launch Streamlit
+            subprocess.run([
+                sys.executable, "-m", "streamlit", "run",
+                str(__file__),
+                "--server.port", str(port),
+                "--server.address", "localhost",
+                "--browser.gatherUsageStats", "false"
+            ], check=True)
+            return True
+            
+        except subprocess.CalledProcessError as e:
+            if "Port" in str(e) and "is already in use" in str(e):
+                print(f"⚠️ Port {port} is busy, trying next port...")
+                continue
+            else:
+                print(f"❌ Error launching Streamlit: {e}")
+                return False
+        except KeyboardInterrupt:
+            print("\n🛑 Streamlit server stopped by user")
+            return True
+        except Exception as e:
+            print(f"❌ Unexpected error: {e}")
+            return False
+    
+    print("❌ All ports are busy. Please stop other Streamlit instances and try again.")
+    return False
+
+# Check if this file is being run directly (not by Streamlit)
+if __name__ == "__main__":
+    # Check if we're being run by Streamlit or directly
+    if "streamlit" not in sys.modules:
+        # Run directly - launch Streamlit
+        success = launch_streamlit()
+        sys.exit(0 if success else 1)
+    else:
+        # Being run by Streamlit - continue with the app
+        pass
+
+# Streamlit app code starts here
 import streamlit as st
 import asyncio
 import time
 import json
-import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
+
+# Import our systems
+from production_integration import ProductionIntelliVestAI, AnalysisRequest
+from financial_facts import get_random_fact
 
 # Configure LiteLLM environment variables before importing production system
 from dotenv import load_dotenv
@@ -627,12 +697,11 @@ class IntelliVestStreamlitApp:
                 df = pd.DataFrame(history_data)
                 
                 # Create performance chart
-                fig = px.line(
-                    df,
-                    x=df.index,
-                    y="Time",
+                fig = go.Figure(data=go.Scatter(x=df.index, y=df['Time'], mode='lines+markers'))
+                fig.update_layout(
                     title="Analysis Execution Times",
-                    labels={"Time": "Execution Time (seconds)", "index": "Analysis #"}
+                    xaxis_title="Analysis #",
+                    yaxis_title="Execution Time (seconds)"
                 )
                 st.plotly_chart(fig, use_container_width=True)
     
@@ -720,15 +789,13 @@ class IntelliVestStreamlitApp:
                 df_sectors = pd.DataFrame(sector_data)
                 
                 # Create bar chart
-                fig = px.bar(
-                    df_sectors,
-                    x='Sector',
-                    y='Performance',
-                    color='Performance',
+                fig = go.Figure(data=go.Bar(x=df_sectors['Sector'], y=df_sectors['Performance'], marker_color=df_sectors['Performance']))
+                fig.update_layout(
                     title="Discovered Sector Performance (Last 5 Days)",
-                    color_continuous_scale=['red', 'yellow', 'green']
+                    xaxis_title="Sector",
+                    yaxis_title="Performance (%)",
+                    height=400
                 )
-                fig.update_layout(height=400)
                 st.plotly_chart(fig, use_container_width=True)
         
         # Add a separator before the analysis form
@@ -1181,15 +1248,13 @@ class IntelliVestStreamlitApp:
                         df_sectors = pd.DataFrame(sector_data)
                         
                         # Create bar chart
-                        fig = px.bar(
-                            df_sectors,
-                            x='Sector',
-                            y='Performance',
-                            color='Performance',
+                        fig = go.Figure(data=go.Bar(x=df_sectors['Sector'], y=df_sectors['Performance'], marker_color=df_sectors['Performance']))
+                        fig.update_layout(
                             title="Discovered Sector Performance (Last 5 Days)",
-                            color_continuous_scale=['red', 'yellow', 'green']
+                            xaxis_title="Sector",
+                            yaxis_title="Performance (%)",
+                            height=400
                         )
-                        fig.update_layout(height=400)
                         st.plotly_chart(fig, use_container_width=True)
                         
                         # Display sector table
