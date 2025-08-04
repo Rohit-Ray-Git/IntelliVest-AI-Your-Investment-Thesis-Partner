@@ -35,7 +35,7 @@ from tools.investment_tools import (
     WebCrawlerTool, FinancialDataTool, SentimentAnalysisTool,
     ValuationTool, ThesisGenerationTool, CritiqueTool
 )
-from tools.market_scanner_tool import MarketScannerTool
+from tools.market_scanner_tool import DynamicMarketScannerTool
 
 @dataclass
 class AnalysisRequest:
@@ -185,7 +185,7 @@ class ProductionIntelliVestAI:
                 'valuation': ValuationTool(),
                 'thesis_generation': ThesisGenerationTool(),
                 'critique': CritiqueTool(),
-                'market_scanner': MarketScannerTool()
+                'market_scanner': DynamicMarketScannerTool()
             }
             print("✅ Custom Tools: 7 tools initialized (including Market Scanner)")
         except Exception as e:

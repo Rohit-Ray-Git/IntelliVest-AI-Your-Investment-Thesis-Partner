@@ -251,8 +251,8 @@ class IntelliVestStreamlitApp:
         st.markdown("""
         <div class="main-header">
             <h1>🚀 IntelliVest AI</h1>
-            <h3>Your Investment Thesis Partner</h3>
-            <p>Advanced AI-Powered Investment Analysis with Parallel Processing</p>
+            <h3>Your Dynamic Investment Thesis Partner</h3>
+            <p>Advanced AI-Powered Market Discovery with Parallel Processing</p>
         </div>
         """, unsafe_allow_html=True)
     
@@ -983,7 +983,7 @@ class IntelliVestStreamlitApp:
         self.render_metrics()
         
         # Main content area
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Analysis", "📈 Market Overview", "📚 History", "🔧 Status", "ℹ️ About"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Analysis", "📈 Market Discovery", "📚 History", "🔧 Status", "ℹ️ About"])
         
         with tab1:
             # Render analysis form
@@ -1064,23 +1064,23 @@ class IntelliVestStreamlitApp:
             self.render_about()
     
     def render_market_overview(self):
-        """Render the market overview tab"""
-        st.markdown("## �� Market Overview")
+        """Render the dynamic market overview tab"""
+        st.markdown("## 📈 Dynamic Market Overview")
         
         # Add refresh button for market data
         col1, col2 = st.columns([3, 1])
         
         with col1:
-            st.info("🔍 Scanning market for top performers and trending sectors...")
+            st.info("🔍 Dynamically discovering trending stocks and sectors...")
         
         with col2:
-            if st.button("🔄 Refresh Market Data", help="Update market data"):
+            if st.button("🔄 Refresh Market Data", help="Update dynamic market data"):
                 st.rerun()
         
         # Get market insights
         if self.system:
             try:
-                with st.spinner("📊 Fetching market data..."):
+                with st.spinner("📊 Dynamically discovering market data..."):
                     market_data = self.system.get_market_insights(days_back=5)
                 
                 if "error" in market_data:
@@ -1088,9 +1088,24 @@ class IntelliVestStreamlitApp:
                     return
                 
                 # Display market summary
-                st.markdown("### 📊 Market Summary")
+                st.markdown("### 📊 Dynamic Market Discovery Summary")
                 st.info(f"**Scan Date:** {market_data.get('scan_date', 'Unknown')}")
                 st.info(f"**Days Analyzed:** {market_data.get('days_analyzed', 5)}")
+                st.info(f"**Discovery Method:** {market_data.get('discovery_method', 'Dynamic Scanner')}")
+                
+                # Discovery statistics
+                discovery_stats = market_data.get('discovery_stats', {})
+                if discovery_stats:
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("Stocks Analyzed", discovery_stats.get('stocks_analyzed', 0))
+                    
+                    with col2:
+                        st.metric("Sectors Analyzed", discovery_stats.get('sectors_analyzed', 0))
+                    
+                    with col3:
+                        st.metric("Indices Analyzed", discovery_stats.get('indices_analyzed', 0))
                 
                 # Market insights
                 insights = market_data.get('market_insights', {})
@@ -1111,19 +1126,20 @@ class IntelliVestStreamlitApp:
                         trending_sectors = insights.get('trending_sectors', [])
                         st.metric("Trending Sectors", len(trending_sectors))
                 
-                # Top performing stocks
+                # Top performing discovered stocks
                 top_stocks = market_data.get('top_performing_stocks', [])
                 if top_stocks:
-                    st.markdown("### 🏆 Top Performing Stocks")
+                    st.markdown("### 🏆 Top Performing Discovered Stocks")
                     
                     # Create a dataframe for better display
                     stock_data = []
                     for stock in top_stocks[:10]:
+                        stock_symbol = stock['symbol'].replace('.NS', '')  # Remove .NS suffix
                         stock_data.append({
-                            "Symbol": stock['symbol'],
+                            "Symbol": stock_symbol,
                             "Name": stock['name'][:30] + "..." if len(stock['name']) > 30 else stock['name'],
                             "Sector": stock['sector'],
-                            "Price": f"${stock['current_price']}",
+                            "Price": f"${stock['current_price']}" if not stock['symbol'].endswith('.NS') else f"₹{stock['current_price']}",
                             "Change": f"{stock['price_change_pct']:+.2f}%",
                             "Volatility": f"{stock['volatility']:.1f}%",
                             "Score": f"{stock['performance_score']:.1f}"
@@ -1144,28 +1160,30 @@ class IntelliVestStreamlitApp:
                         st.dataframe(styled_df, use_container_width=True, hide_index=True)
                         
                         # Show top 3 stocks in cards
-                        st.markdown("### 🥇 Top 3 Performers")
+                        st.markdown("### 🥇 Top 3 Discovered Performers")
                         cols = st.columns(3)
                         
                         for i, stock in enumerate(top_stocks[:3]):
                             with cols[i]:
                                 direction = "📈" if stock['price_change_pct'] > 0 else "📉"
+                                stock_symbol = stock['symbol'].replace('.NS', '')
+                                price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
                                 st.markdown(f"""
                                 <div style="padding: 1rem; border: 1px solid #ddd; border-radius: 10px; text-align: center;">
-                                    <h4>{stock['symbol']}</h4>
+                                    <h4>{stock_symbol}</h4>
                                     <p><strong>{stock['name']}</strong></p>
                                     <p style="font-size: 1.5rem; color: {'green' if stock['price_change_pct'] > 0 else 'red'};">
                                         {direction} {stock['price_change_pct']:+.2f}%
                                     </p>
-                                    <p>${stock['current_price']}</p>
+                                    <p>{price_symbol}{stock['current_price']}</p>
                                     <p><small>{stock['sector']}</small></p>
                                 </div>
                                 """, unsafe_allow_html=True)
                 
-                # Top performing sectors
+                # Top performing discovered sectors
                 top_sectors = market_data.get('top_performing_sectors', [])
                 if top_sectors:
-                    st.markdown("### 🏆 Top Performing Sectors")
+                    st.markdown("### 🏆 Top Performing Discovered Sectors")
                     
                     # Create sector chart
                     sector_data = []
@@ -1185,7 +1203,7 @@ class IntelliVestStreamlitApp:
                             x='Sector',
                             y='Performance',
                             color='Performance',
-                            title="Sector Performance (Last 5 Days)",
+                            title="Discovered Sector Performance (Last 5 Days)",
                             color_continuous_scale=['red', 'yellow', 'green']
                         )
                         fig.update_layout(height=400)
@@ -1202,11 +1220,11 @@ class IntelliVestStreamlitApp:
                 
                 # Market summary
                 if market_data.get('market_summary'):
-                    with st.expander("📋 Detailed Market Summary"):
+                    with st.expander("📋 Detailed Market Discovery Summary"):
                         st.markdown(market_data['market_summary'])
                 
             except Exception as e:
-                st.error(f"❌ Could not load market data: {e}")
+                st.error(f"❌ Could not load dynamic market data: {e}")
                 st.info("Please try refreshing the market data or check your internet connection.")
         else:
             st.warning("⚠️ System not available for market data")
