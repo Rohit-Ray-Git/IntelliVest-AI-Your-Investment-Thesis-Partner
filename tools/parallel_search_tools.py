@@ -59,10 +59,12 @@ class ParallelWebSearchTool(BaseTool):
     
     name: str = "parallel_web_search"
     description: str = """
-    High-speed parallel web search for financial data using concurrent processing.
-    Dramatically faster than sequential search while maintaining data quality.
+    High-speed parallel web search for CURRENT and RECENT financial data using concurrent processing.
+    Focuses on the latest information from the past 3-6 months, including recent earnings reports,
+    current market data, latest analyst ratings, and recent corporate developments.
+    Dramatically faster than sequential search while maintaining data quality and prioritizing current information.
     Input should be a search query for financial information.
-    Returns scraped content from discovered sources.
+    Returns scraped content from discovered sources with emphasis on recent data.
     """
     
     # Define fields that will be set in __init__
@@ -132,40 +134,43 @@ class ParallelWebSearchTool(BaseTool):
             return f"❌ Parallel search failed: {str(e)}"
     
     def _tavily_search(self, query: str) -> List[str]:
-        """Search for URLs using Tavily API"""
+        """Use Tavily for intelligent web search with focus on recent data"""
         if not TAVILY_AVAILABLE or not tavily_client:
-            return []
+            print("⚠️ Tavily not available, using fallback search")
+            return self._fallback_search(query)
         
         try:
-            print(f"🔍 Tavily Search: '{query}'")
-            response = tavily_client.search(
-                query=query,
-                search_depth="basic",
-                max_results=10,
-                include_domains=["finance.yahoo.com", "investing.com", "marketwatch.com", 
-                               "seekingalpha.com", "cnbc.com", "bloomberg.com", "reuters.com",
-                               "wsj.com", "ft.com", "apple.com", "google.com", "nasdaq.com", "macrotrends.net", "nseindia.com",
-                               "bseindia.com"]
+            # Add time constraints to prioritize recent data
+            enhanced_query = f"{query} latest news recent developments current data 2025"
+            
+            print(f"🔍 Tavily search: {enhanced_query}")
+            
+            # Search with time constraints and news focus
+            search_result = tavily_client.search(
+                query=enhanced_query,
+                search_depth="advanced",
+                include_domains=["finance.yahoo.com", "reuters.com", "bloomberg.com", "marketwatch.com", 
+                               "seekingalpha.com", "cnbc.com", "wsj.com", "ft.com", "investing.com"],
+                exclude_domains=["wikipedia.org", "reddit.com"],
+                max_results=15,
+                include_answer=True,
+                include_raw_content=True,
+                include_images=False
             )
             
             urls = []
-            if response and 'results' in response:
-                for result in response['results']:
+            if 'results' in search_result:
+                for result in search_result['results']:
                     url = result.get('url', '')
                     if url and self._is_valid_financial_url(url):
                         urls.append(url)
             
-            print(f"✅ Tavily found {len(urls)} URLs")
-            if urls:
-                print(f"🔍 Discovered URLs (first 3):")
-                for i, url in enumerate(urls[:3], 1):
-                    print(f"  {i}. {url}")
-            
-            return urls
+            print(f"✅ Tavily found {len(urls)} relevant URLs")
+            return urls[:10]  # Limit to top 10 results
             
         except Exception as e:
-            print(f"❌ Tavily search error: {e}")
-            return []
+            print(f"❌ Tavily search failed: {e}")
+            return self._fallback_search(query)
     
     def _parallel_scrape_urls(self, urls: List[str], query: str) -> List[Dict[str, Any]]:
         """
@@ -419,26 +424,67 @@ class ParallelWebSearchTool(BaseTool):
         return text
     
     def _is_content_relevant_enhanced(self, content: str, query: str) -> bool:
-        """Enhanced relevance checking"""
-        if not content or len(content) < 50:
+        """Enhanced content relevance check with focus on recent data"""
+        if not content or len(content.strip()) < 50:
             return False
         
-        # Convert to lowercase for comparison
+        # Convert to lowercase for better matching
         content_lower = content.lower()
         query_lower = query.lower()
         
         # Extract key terms from query
-        query_terms = [term.strip() for term in query_lower.split() if len(term) > 2]
+        query_terms = query_lower.split()
         
-        # Check if key terms appear in content
-        relevant_terms = 0
-        for term in query_terms:
-            if term in content_lower:
-                relevant_terms += 1
+        # Check for recent time indicators (prioritize current data)
+        recent_indicators = [
+            '2025', '2024', 'recent', 'latest', 'current', 'today', 'yesterday', 
+            'this week', 'this month', 'this quarter', 'this year',
+            'latest earnings', 'recent results', 'current quarter', 'q4 2024', 'q1 2025',
+            'updated', 'announced', 'released', 'reported'
+        ]
         
-        # Content is relevant if at least 30% of terms match
-        relevance_threshold = max(1, len(query_terms) * 0.3)
-        return relevant_terms >= relevance_threshold
+        has_recent_info = any(indicator in content_lower for indicator in recent_indicators)
+        
+        # Check for financial relevance
+        financial_terms = [
+            'earnings', 'revenue', 'profit', 'financial', 'stock', 'market', 'investment',
+            'quarterly', 'annual', 'guidance', 'analyst', 'rating', 'price target',
+            'balance sheet', 'cash flow', 'debt', 'valuation', 'pe ratio', 'market cap'
+        ]
+        
+        has_financial_info = any(term in content_lower for term in financial_terms)
+        
+        # Check for query term matches
+        query_matches = sum(1 for term in query_terms if term in content_lower)
+        query_match_ratio = query_matches / len(query_terms) if query_terms else 0
+        
+        # Enhanced scoring system
+        score = 0
+        
+        # Base relevance (query terms)
+        if query_match_ratio >= 0.3:  # At least 30% of query terms match
+            score += 3
+        elif query_match_ratio >= 0.2:  # At least 20% of query terms match
+            score += 2
+        elif query_match_ratio >= 0.1:  # At least 10% of query terms match
+            score += 1
+        
+        # Recent information bonus
+        if has_recent_info:
+            score += 2  # Bonus for recent data
+        
+        # Financial relevance bonus
+        if has_financial_info:
+            score += 2  # Bonus for financial content
+        
+        # Content length bonus (prefer substantial content)
+        if len(content) > 500:
+            score += 1
+        elif len(content) > 200:
+            score += 0.5
+        
+        # Minimum score threshold
+        return score >= 3  # Require at least 3 points for relevance
     
     def _is_valid_financial_url(self, url: str) -> bool:
         """Check if URL is likely to contain financial data"""

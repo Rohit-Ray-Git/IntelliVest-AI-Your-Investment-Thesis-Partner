@@ -167,7 +167,8 @@ class ProductionIntelliVestAI:
                     "models_used": result.get("models_used", []),
                     "fallback_count": result.get("fallback_count", 0),
                     "confidence_score": result.get("confidence_score", 0.0),
-                    "tools_used": list(self.tools.keys()) if request.include_tools else []
+                    "tools_used": list(self.tools.keys()) if request.include_tools else [],
+                    "analysis_date": result.get("analysis_date") # Add analysis_date to metadata
                 },
                 execution_time=execution_time,
                 models_used=result.get("models_used", []),
@@ -233,9 +234,14 @@ class ProductionIntelliVestAI:
                 # Fallback to string conversion
                 final_thesis = str(crew_result)
             
+            # Get current date
+            from datetime import datetime
+            current_date = datetime.now().strftime("%B %d, %Y")
+            
             return {
                 "analysis_type": "full",
                 "company_name": request.company_name,
+                "analysis_date": current_date,
                 "full_result": final_thesis,  # This contains the final rewritten thesis after critique
                 "research": "Research analysis completed by Research Agent",
                 "sentiment": "Sentiment analysis completed by Sentiment Agent", 

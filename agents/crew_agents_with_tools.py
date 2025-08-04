@@ -84,37 +84,50 @@ class InvestmentAnalysisCrewWithTools:
         # ⚡ Optimized Research Agent with Parallel Processing
         self.researcher = Agent(
             role="High-Speed Financial Research Analyst",
-            goal="Gather comprehensive financial data, news, and market information using parallel processing for maximum speed",
+            goal="Gather comprehensive financial data, news, and market information using parallel processing for maximum speed with focus on CURRENT and RECENT data",
             backstory=f"""You are an expert financial research analyst with 15+ years of experience.
-            You specialize in gathering and analyzing financial data, market news, and company information
+            You specialize in gathering and analyzing the MOST RECENT financial data, market news, and company information
             using advanced parallel processing techniques to achieve maximum speed and efficiency.
             
+            Your expertise includes:
+            - Real-time market data analysis and current financial metrics
+            - Latest earnings reports, guidance updates, and recent corporate developments
+            - Current competitive landscape and recent market changes
+            - Recent regulatory updates and compliance changes
+            - Latest analyst reports, price targets, and institutional activity
+            - Current risk factors and recent market developments
+            
             You have access to:
-            - Parallel web search tools for ultra-fast data discovery
-            - Financial data APIs for comprehensive metrics
-            - Parallel institutional data tools for holdings analysis
+            - Parallel web search tools for ultra-fast current data discovery
+            - Financial data APIs for comprehensive real-time metrics
+            - Parallel institutional data tools for current holdings analysis
             - Advanced AI models for optimal analysis quality
             
             Your parallel processing capabilities allow you to:
-            1. Search multiple news sources simultaneously
-            2. Gather financial data from multiple sources in parallel
-            3. Analyze institutional holdings and market data concurrently
-            4. Process multiple analysis tasks simultaneously
+            1. Search multiple current news sources simultaneously
+            2. Gather the latest financial data from multiple sources in parallel
+            3. Analyze current institutional holdings and real-time market data concurrently
+            4. Process multiple current analysis tasks simultaneously
             
             When given a company name, you will:
-            1. Use parallel search to gather recent news and market updates rapidly
-            2. Analyze comprehensive financial metrics using parallel data gathering
-            3. Evaluate competitive landscape with concurrent analysis
-            4. Identify key risks and opportunities using parallel processing
-            5. Provide well-organized research findings with specific data points
+            1. Use parallel search to gather the MOST RECENT news and market updates rapidly
+            2. Analyze current comprehensive financial metrics using parallel data gathering
+            3. Evaluate the current competitive landscape with concurrent analysis
+            4. Identify current key risks and opportunities using parallel processing
+            5. Provide well-organized research findings with specific CURRENT data points
             
-            IMPORTANT: You have access to parallel processing tools for ultra-fast data retrieval.
-            - Use parallel web search tools for news and market data
-            - Use parallel institutional data tools for holdings analysis
-            - Use financial data tools for comprehensive metrics
+            CRITICAL: You prioritize the LATEST information from the past 3-6 months and avoid outdated data.
+            - Focus on recent earnings reports, current financial metrics, and latest developments
+            - Emphasize what has changed recently and current market conditions
+            - Include specific dates and timeframes for all information
+            - Prioritize 2025 data and Q1 2025 results when available
+            - Use parallel web search tools for current news and market data
+            - Use parallel institutional data tools for current holdings analysis
+            - Use financial data tools for current comprehensive metrics
             
             You use the most advanced AI models available for optimal analysis quality
-            and achieve 2-3x faster execution times compared to traditional sequential methods.""",
+            and achieve 2-3x faster execution times compared to traditional sequential methods
+            while ensuring all data is current and relevant.""",
             llm=self._get_llm_for_task(TaskType.RESEARCH),
             verbose=True,
             allow_delegation=False
@@ -230,37 +243,70 @@ class InvestmentAnalysisCrewWithTools:
 
     def create_tasks(self, company_name: str) -> List[Task]:
         """Create tasks for the investment analysis workflow"""
+        from datetime import datetime
+        
+        # Get current date for analysis
+        current_date = datetime.now().strftime("%B %d, %Y")
+        current_year = datetime.now().year
+        
         tasks = [
             # Task 1: Research
             Task(
                 description=f"""
-                Research {company_name} thoroughly and provide a comprehensive analysis:
+                Research {company_name} thoroughly and provide a comprehensive analysis using the MOST RECENT and CURRENT data available:
                 
-                1. Company Overview:
-                   - Business model and main products/services
-                   - Market position and competitive advantages
-                   - Management team and strategy
+                CURRENT DATE: {current_date} - Use this date for all analysis references.
                 
-                2. Financial Analysis:
-                   - Revenue, earnings, and growth trends
-                   - Key financial ratios (P/E, P/B, ROE, etc.)
-                   - Cash flow and balance sheet strength
+                CRITICAL: Focus on the LATEST information from the past 3-6 months. Prioritize real-time data and recent developments.
                 
-                3. Market Analysis:
-                   - Industry trends and market size
-                   - Competitive landscape
-                   - Regulatory environment
+                1. Company Overview (Recent Developments):
+                   - Current business model and latest products/services launched
+                   - Recent market position changes and competitive advantages
+                   - Latest management changes, strategy updates, or corporate actions
+                   - Recent earnings reports, guidance updates, or financial announcements
                 
-                4. Risk Assessment:
-                   - Business risks and challenges
-                   - Market risks and economic factors
-                   - Competitive threats
+                2. Financial Analysis (Latest Data):
+                   - Most recent quarterly/annual financial results (Q4 2024, Q1 {current_year})
+                   - Current financial ratios and metrics (P/E, P/B, ROE, etc.)
+                   - Latest cash flow and balance sheet strength indicators
+                   - Recent debt levels, credit ratings, or financial health updates
+                   - Current stock price performance and trading volume trends
                 
-                Provide comprehensive, well-organized research findings with specific data points.
-                Use available tools for web crawling and financial data when needed.
+                3. Market Analysis (Current State):
+                   - Latest industry trends and market size updates
+                   - Current competitive landscape and recent competitive moves
+                   - Recent regulatory changes or compliance updates
+                   - Current market sentiment and analyst ratings
+                   - Latest market share data and positioning
+                
+                4. Risk Assessment (Current Risks):
+                   - Current business risks and challenges (last 3-6 months)
+                   - Recent market risks and economic factors affecting the company
+                   - Current competitive threats and industry disruptions
+                   - Latest regulatory or legal developments
+                   - Current supply chain or operational challenges
+                
+                5. Recent News and Events (Past 3-6 Months):
+                   - Latest earnings calls and management commentary
+                   - Recent analyst reports and price target updates
+                   - Current insider trading activity or institutional moves
+                   - Latest product launches, partnerships, or acquisitions
+                   - Recent legal issues, investigations, or controversies
+                
+                IMPORTANT REQUIREMENTS:
+                - Use ONLY the most recent data available (prioritize last 3-6 months)
+                - Include specific dates and timeframes for all information
+                - Focus on current market conditions and recent developments
+                - Avoid outdated information or historical data unless relevant to current analysis
+                - Emphasize what has changed recently and current trends
+                - Prioritize {current_year} data and Q1 {current_year} results when available
+                - ALWAYS use {current_date} as the analysis date, not historical dates
+                
+                Provide comprehensive, well-organized research findings with specific current data points and recent developments.
+                Use available tools for web crawling and financial data to gather the LATEST information.
                 """,
                 agent=self.researcher,
-                expected_output="Comprehensive research report with financial data, market analysis, and risk assessment"
+                expected_output="Comprehensive research report with current financial data, recent market analysis, and latest risk assessment"
             ),
 
             # Task 2: Sentiment Analysis
@@ -330,6 +376,8 @@ class InvestmentAnalysisCrewWithTools:
                 description=f"""
                 Create an investment thesis for {company_name}:
                 
+                CURRENT DATE: {current_date} - Use this date for the thesis.
+                
                 Based on the research, sentiment, and valuation analysis, create a professional investment thesis:
                 
                 1. Executive Summary:
@@ -357,7 +405,10 @@ class InvestmentAnalysisCrewWithTools:
                    - Key action items
                    - Monitoring points
                 
-                Structure the thesis professionally for institutional investors.
+                IMPORTANT: 
+                - Use {current_date} as the analysis date
+                - Structure the thesis professionally for institutional investors
+                - Include the current date in the thesis header
                 """,
                 agent=self.thesis_writer,
                 expected_output="Professional investment thesis with clear recommendation and supporting analysis"
@@ -406,6 +457,8 @@ class InvestmentAnalysisCrewWithTools:
                 description=f"""
                 Rewrite the investment thesis for {company_name} based on the critic's recommendations:
                 
+                CURRENT DATE: {current_date} - Use this date for the final thesis.
+                
                 Using the original thesis and the critic's detailed feedback, create a final improved investment thesis:
                 
                 1. Address All Critic Feedback:
@@ -439,8 +492,11 @@ class InvestmentAnalysisCrewWithTools:
                    - Specific action items for investors
                    - Key monitoring points and triggers
                 
-                Create a professional, well-structured final investment thesis that addresses all critique feedback
-                and provides a compelling, well-supported investment recommendation.
+                CRITICAL REQUIREMENTS:
+                - Use {current_date} as the analysis date in the thesis header
+                - Create a professional, well-structured final investment thesis
+                - Address all critique feedback and provide compelling, well-supported investment recommendation
+                - Ensure the thesis reflects current market conditions as of {current_date}
                 """,
                 agent=self.thesis_writer,
                 expected_output="Final improved investment thesis incorporating all critic recommendations"
