@@ -739,8 +739,9 @@ class IntelliVestStreamlitApp:
         
         # Add a description of the optimized scanner
         st.info("""
-        🚀 **Optimized Market Scanner**: Now using Groq DeepSeek + Tavily web search for dynamic discovery of top 3 performing stocks and sectors. 
-        Results are cached for 5 minutes to ensure fast loading.
+        🚀 **Advanced Market Scanner**: Now using **14 core NSE sectoral indices** with real Yahoo Finance symbols for authentic market data. 
+        Powered by Groq DeepSeek + Tavily web search for dynamic discovery of top 3 performing stocks and sectors.
+        Results are cached for 2 minutes to ensure fast loading.
         """)
         
         # Load market highlights (cached)
@@ -753,16 +754,18 @@ class IntelliVestStreamlitApp:
         # Show cache status and performance info
         if st.session_state.market_highlights_timestamp:
             cache_age = datetime.now() - st.session_state.market_highlights_timestamp
-            st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago | ⚡ Optimized for speed | 🚀 ~30s scan time")
+            st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago | ⚡ Optimized for speed | 🚀 ~32s scan time | 📈 Real NSE indices")
         
         # Add performance metrics
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("⚡ Scan Speed", "~30s", "Optimized")
+            st.metric("⚡ Scan Speed", "~32s", "Optimized")
         with col2:
             st.metric("🤖 AI Model", "Groq DeepSeek", "Primary")
         with col3:
             st.metric("🌐 Web Search", "Tavily", "Real-time")
+        with col4:
+            st.metric("📈 NSE Indices", "14 Sectors", "Authentic")
         
         # Add refresh button with better styling
         col1, col2 = st.columns([1, 4])
@@ -773,7 +776,7 @@ class IntelliVestStreamlitApp:
                 st.rerun()
         
         with col2:
-            st.caption("💡 Click refresh to get the latest market data using our optimized scanner")
+            st.caption("💡 Click refresh to get the latest market data using our advanced scanner with real NSE sectoral indices")
         
         # Top performing discovered stocks
         top_stocks = market_data.get('top_performing_stocks', [])
@@ -789,7 +792,17 @@ class IntelliVestStreamlitApp:
                     direction = "📈" if stock['price_change_pct'] > 0 else "📉"
                     stock_symbol = stock['symbol'].replace('.NS', '').replace('.BO', '')
                     price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
-                    source_badge = "🌐 Web" if "yfinance" in stock.get('source', '') else "🤖 AI"
+                    
+                    # Better source badge based on actual source
+                    source = stock.get('source', '')
+                    if 'yfinance' in source:
+                        source_badge = "📊 Yahoo"
+                    elif 'web_search' in source:
+                        source_badge = "🌐 Web"
+                    elif 'llm' in source:
+                        source_badge = "🤖 AI"
+                    else:
+                        source_badge = "📈 Data"
                     
                     # Color coding based on performance
                     color = "green" if stock['price_change_pct'] > 0 else "red"
@@ -820,7 +833,7 @@ class IntelliVestStreamlitApp:
         # Top performing discovered sectors
         top_sectors = market_data.get('top_performing_sectors', [])
         if top_sectors:
-            st.markdown("### 🏆 Top Performing Discovered Sectors")
+            st.markdown("### 🏆 Top Performing NSE Sectoral Indices")
             
             # Create sector cards similar to stocks
             sector_cols = st.columns(3)
@@ -828,8 +841,18 @@ class IntelliVestStreamlitApp:
             for i, sector in enumerate(top_sectors[:3]):
                 with sector_cols[i]:
                     direction = "📈" if sector['price_change_pct'] > 0 else "📉"
-                    sector_name = sector['name'].replace(' Sector', '').replace(' Index', '')
-                    source_badge = "🌐 Web" if "yfinance" in sector.get('source', '') else "🤖 AI"
+                    sector_name = sector['name'].replace(' Sector', '').replace(' Index', '').replace(' (Overall Market)', '')
+                    source = sector.get('source', '')
+                    
+                    # Better source badge based on actual source
+                    if 'yfinance' in source:
+                        source_badge = "📊 Yahoo"
+                    elif 'web_search' in source:
+                        source_badge = "🌐 Web"
+                    elif 'llm' in source:
+                        source_badge = "🤖 AI"
+                    else:
+                        source_badge = "📈 Data"
                     
                     # Color coding based on performance
                     color = "green" if sector['price_change_pct'] > 0 else "red"
@@ -849,11 +872,11 @@ class IntelliVestStreamlitApp:
             
             # Add sector performance chart
             if len(top_sectors) > 1:
-                st.markdown("#### 📊 Sector Performance Chart")
+                st.markdown("#### 📊 NSE Sectoral Indices Performance Chart")
                 sector_data = []
                 for sector in top_sectors[:5]:
                     sector_data.append({
-                        "Sector": sector['name'].replace(' Sector', '').replace(' Index', ''),
+                        "Sector": sector['name'].replace(' Sector', '').replace(' Index', '').replace(' (Overall Market)', ''),
                         "Performance": sector['price_change_pct'],
                         "Volatility": sector.get('volatility', 0)
                     })
@@ -870,7 +893,7 @@ class IntelliVestStreamlitApp:
                         textposition='auto'
                     ))
                     fig.update_layout(
-                        title="Sector Performance Overview",
+                        title="NSE Sectoral Indices Performance Overview",
                         xaxis_title="Sector",
                         yaxis_title="Performance (%)",
                         height=400,
