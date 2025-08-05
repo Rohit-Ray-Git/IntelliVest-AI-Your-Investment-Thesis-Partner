@@ -572,8 +572,734 @@ class IntelliVestStreamlitApp:
         # Analysis content - only show if successful
         if result.status == "success" and result.content:
             self.render_analysis_content(result.content)
+            
+            # Add report download section
+            self.render_report_download_section(result)
         elif result.status == "error":
             st.info("Analysis completed with errors. Please check the error message above.")
+    
+    def render_report_download_section(self, result):
+        """Render the report download section"""
+        st.markdown("---")
+        st.markdown("## 📥 Download Report")
+        
+        # Create download options - only PDF
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            if st.button("📄 Download PDF Report", type="primary", use_container_width=True):
+                self.download_pdf_report(result)
+        
+        # Add report customization options
+        with st.expander("⚙️ Report Customization Options"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                include_metrics = st.checkbox("Include Performance Metrics", value=True)
+                include_workflow = st.checkbox("Include Analysis Workflow", value=True)
+            
+            with col2:
+                include_insights = st.checkbox("Include Key Insights", value=True)
+                include_risks = st.checkbox("Include Risk Assessment", value=True)
+            
+            # Custom report generation
+            if st.button("🔄 Generate Custom Report", type="secondary"):
+                self.generate_custom_report(result, {
+                    'include_metrics': include_metrics,
+                    'include_workflow': include_workflow,
+                    'include_insights': include_insights,
+                    'include_risks': include_risks
+                })
+    
+    def download_pdf_report(self, result):
+        """Generate and download PDF report"""
+        try:
+            with st.spinner("📄 Generating PDF report..."):
+                pdf_content = self.generate_pdf_content(result)
+                
+                # Create a temporary file
+                import tempfile
+                import os
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf', mode='w') as tmp_file:
+                    tmp_file.write(pdf_content)
+                    tmp_file_path = tmp_file.name
+                
+                # Read the file and create download button
+                with open(tmp_file_path, 'rb') as f:
+                    pdf_bytes = f.read()
+                
+                # Clean up temporary file
+                os.unlink(tmp_file_path)
+                
+                # Create download button
+                st.download_button(
+                    label="📄 Download PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"investment_analysis_{result.request.company_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    type="primary"
+                )
+                
+                st.success("✅ PDF report generated successfully!")
+                
+        except Exception as e:
+            st.error(f"❌ Error generating PDF report: {e}")
+    
+    def generate_custom_report(self, result, options):
+        """Generate a custom report based on user preferences"""
+        try:
+            with st.spinner("🔄 Generating custom report..."):
+                custom_content = self.generate_custom_content(result, options)
+                
+                # Create download button
+                st.download_button(
+                    label="📥 Download Custom Report",
+                    data=custom_content,
+                    file_name=f"custom_analysis_{result.request.company_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    type="primary"
+                )
+                
+                st.success("✅ Custom report generated successfully!")
+                
+        except Exception as e:
+            st.error(f"❌ Error generating custom report: {e}")
+    
+    def generate_pdf_content(self, result):
+        """Generate PDF content for the report using reportlab with rich formatting"""
+        try:
+            from reportlab.lib.pagesizes import letter, A4
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
+            from io import BytesIO
+            import re
+            
+            # Create a buffer to store the PDF
+            buffer = BytesIO()
+            
+            # Create the PDF document
+            doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+            
+            # Get styles
+            styles = getSampleStyleSheet()
+            
+            # Create custom styles with rich formatting
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=20,
+                spaceAfter=30,
+                alignment=TA_CENTER,
+                textColor=colors.darkblue,
+                fontName='Helvetica-Bold',
+                borderWidth=2,
+                borderColor=colors.darkblue,
+                borderPadding=10,
+                backColor=colors.lightblue
+            )
+            
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading2'],
+                fontSize=16,
+                spaceAfter=15,
+                spaceBefore=20,
+                textColor=colors.darkblue,
+                fontName='Helvetica-Bold',
+                leftIndent=10,
+                borderWidth=1,
+                borderColor=colors.grey,
+                borderPadding=5,
+                backColor=colors.lightgrey
+            )
+            
+            subheading_style = ParagraphStyle(
+                'CustomSubHeading',
+                parent=styles['Heading3'],
+                fontSize=14,
+                spaceAfter=10,
+                spaceBefore=15,
+                textColor=colors.darkgreen,
+                fontName='Helvetica-Bold',
+                leftIndent=15
+            )
+            
+            normal_style = ParagraphStyle(
+                'CustomNormal',
+                parent=styles['Normal'],
+                fontSize=11,
+                spaceAfter=8,
+                leading=14,
+                alignment=TA_JUSTIFY,
+                fontName='Helvetica'
+            )
+            
+            bullet_style = ParagraphStyle(
+                'CustomBullet',
+                parent=styles['Normal'],
+                fontSize=11,
+                spaceAfter=6,
+                leading=14,
+                alignment=TA_LEFT,
+                fontName='Helvetica',
+                leftIndent=20
+            )
+            
+            highlight_style = ParagraphStyle(
+                'CustomHighlight',
+                parent=styles['Normal'],
+                fontSize=11,
+                spaceAfter=8,
+                leading=14,
+                alignment=TA_LEFT,
+                fontName='Helvetica-Bold',
+                textColor=colors.darkred,
+                backColor=colors.lightyellow,
+                borderWidth=1,
+                borderColor=colors.darkred,
+                borderPadding=5
+            )
+            
+            # Build the story (content)
+            story = []
+            
+            # Title with rich formatting
+            story.append(Paragraph("🚀 INTELLIVEST AI - INVESTMENT ANALYSIS REPORT", title_style))
+            story.append(Spacer(1, 20))
+            
+            # Report metadata in a formatted table
+            content = result.content
+            company_name = result.request.company_name
+            analysis_type = result.request.analysis_type
+            execution_time = result.execution_time
+            confidence_score = result.confidence_score
+            
+            metadata_data = [
+                ['📊 Report Generated', datetime.now().strftime('%B %d, %Y at %I:%M %p')],
+                ['🏢 Company Analyzed', company_name],
+                ['📈 Analysis Type', analysis_type.title()],
+                ['⚡ Execution Time', f"{execution_time:.2f} seconds"],
+                ['🎯 Confidence Score', f"{confidence_score:.2f}"],
+                ['✅ Status', 'SUCCESS' if result.status == 'success' else 'ERROR']
+            ]
+            
+            metadata_table = Table(metadata_data, colWidths=[2*inch, 3*inch])
+            metadata_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), colors.lightblue),
+                ('BACKGROUND', (1, 0), (1, -1), colors.lightgrey),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            
+            story.append(metadata_table)
+            story.append(Spacer(1, 25))
+            
+            # Executive Summary with rich formatting
+            story.append(Paragraph("📋 EXECUTIVE SUMMARY", heading_style))
+            story.append(Spacer(1, 15))
+            
+            if isinstance(content, dict):
+                if "full_result" in content:
+                    # Process the full result with better content parsing
+                    story.extend(self._process_investment_thesis_content(content['full_result'], subheading_style, normal_style, bullet_style))
+                    story.append(Spacer(1, 20))
+                    
+                    # Individual components with enhanced formatting
+                    if "research" in content:
+                        story.append(Paragraph("🔍 RESEARCH ANALYSIS", subheading_style))
+                        story.extend(self._process_content_paragraphs(content['research'], normal_style, bullet_style))
+                        story.append(Spacer(1, 15))
+                    
+                    if "sentiment" in content:
+                        story.append(Paragraph("🧠 SENTIMENT ANALYSIS", subheading_style))
+                        story.extend(self._process_content_paragraphs(content['sentiment'], normal_style, bullet_style))
+                        story.append(Spacer(1, 15))
+                    
+                    if "valuation" in content:
+                        story.append(Paragraph("💰 VALUATION ANALYSIS", subheading_style))
+                        story.extend(self._process_content_paragraphs(content['valuation'], normal_style, bullet_style))
+                        story.append(Spacer(1, 15))
+                    
+                    if "critique" in content:
+                        story.append(Paragraph("🔍 CRITIC'S RECOMMENDATIONS", subheading_style))
+                        story.extend(self._process_content_paragraphs(content['critique'], normal_style, bullet_style))
+                        story.append(Spacer(1, 15))
+                
+                elif "content" in content:
+                    story.append(Paragraph("📝 ANALYSIS CONTENT", subheading_style))
+                    story.extend(self._process_content_paragraphs(content['content'], normal_style, bullet_style))
+                    story.append(Spacer(1, 15))
+                
+                # Models used in a formatted table
+                if "models_used" in content:
+                    story.append(Paragraph("🤖 MODELS USED", subheading_style))
+                    models_data = [[f"• {model}"] for model in content['models_used']]
+                    models_table = Table(models_data, colWidths=[5*inch])
+                    models_table.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, -1), colors.lightgreen),
+                        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 10),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+                        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                    ]))
+                    story.append(models_table)
+                    story.append(Spacer(1, 15))
+            
+            else:
+                story.append(Paragraph("📝 ANALYSIS CONTENT", subheading_style))
+                story.extend(self._process_content_paragraphs(str(content), normal_style, bullet_style))
+                story.append(Spacer(1, 15))
+            
+            # Report metadata with enhanced formatting
+            story.append(Paragraph("📊 REPORT METADATA", heading_style))
+            
+            metadata_detailed_data = [
+                ['🔢 Analysis ID', str(id(result))],
+                ['⏰ Timestamp', datetime.now().isoformat()],
+                ['🔄 System Version', 'IntelliVest AI v2.0'],
+                ['🤖 Generated By', 'Advanced AI-Powered Investment Analysis System']
+            ]
+            
+            metadata_detailed_table = Table(metadata_detailed_data, colWidths=[2*inch, 3*inch])
+            metadata_detailed_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), colors.lightyellow),
+                ('BACKGROUND', (1, 0), (1, -1), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ]))
+            
+            story.append(metadata_detailed_table)
+            story.append(Spacer(1, 20))
+            
+            # Footer with enhanced formatting
+            footer_text = """
+            <para align="center">
+            <b>This report was generated by IntelliVest AI, an advanced AI-powered investment analysis system.</b><br/>
+            For questions or support, please contact the system administrator.<br/><br/>
+            <i>© 2024 IntelliVest AI. All rights reserved.</i>
+            </para>
+            """
+            story.append(Paragraph(footer_text, normal_style))
+            
+            # Build the PDF
+            doc.build(story)
+            
+            # Get the PDF content
+            pdf_content = buffer.getvalue()
+            buffer.close()
+            
+            return pdf_content
+            
+        except Exception as e:
+            # Fallback to simple text-based PDF
+            return self.generate_simple_pdf_content(result)
+    
+    def _process_investment_thesis_content(self, content, subheading_style, normal_style, bullet_style):
+        """Process investment thesis content with proper formatting"""
+        story_elements = []
+        
+        # Split content into lines and process each line
+        lines = content.split('\n')
+        current_section = ""
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Check for main section headers (numbered sections like "1. Executive Summary")
+            if re.match(r'^\d+\.\s+[A-Z]', line):
+                current_section = line
+                story_elements.append(Paragraph(line, subheading_style))
+                story_elements.append(Spacer(1, 10))
+            
+            # Check for subsection headers (like "Key Risk Factors:")
+            elif re.match(r'^[A-Z][^:]*:$', line) or line.startswith('**') and line.endswith('**'):
+                # Remove markdown formatting
+                clean_line = line.replace('**', '').replace('*', '')
+                story_elements.append(Paragraph(clean_line, subheading_style))
+                story_elements.append(Spacer(1, 8))
+            
+            # Check for bullet points
+            elif line.startswith('•') or line.startswith('-') or line.startswith('*'):
+                story_elements.append(Paragraph(line, bullet_style))
+                story_elements.append(Spacer(1, 4))
+            
+            # Check for numbered lists
+            elif re.match(r'^\d+\.\s+', line):
+                story_elements.append(Paragraph(line, bullet_style))
+                story_elements.append(Spacer(1, 4))
+            
+            # Regular paragraph content
+            else:
+                # Handle bold text within paragraphs
+                formatted_line = self._format_bold_text(line)
+                story_elements.append(Paragraph(formatted_line, normal_style))
+                story_elements.append(Spacer(1, 6))
+        
+        return story_elements
+    
+    def _process_content_paragraphs(self, content, normal_style, bullet_style):
+        """Process regular content paragraphs"""
+        story_elements = []
+        
+        # Split content into paragraphs
+        paragraphs = content.split('\n\n')
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            
+            # Check if it's a bullet point
+            if para.startswith('•') or para.startswith('-') or para.startswith('*'):
+                story_elements.append(Paragraph(para, bullet_style))
+                story_elements.append(Spacer(1, 4))
+            else:
+                # Handle bold text within paragraphs
+                formatted_para = self._format_bold_text(para)
+                story_elements.append(Paragraph(formatted_para, normal_style))
+                story_elements.append(Spacer(1, 6))
+        
+        return story_elements
+    
+    def _format_bold_text(self, text):
+        """Format bold text in paragraphs"""
+        # Convert markdown bold to HTML bold
+        text = text.replace('**', '<b>').replace('**', '</b>')
+        text = text.replace('*', '<i>').replace('*', '</i>')
+        return text
+    
+    def generate_simple_pdf_content(self, result):
+        """Generate simple text-based PDF content as fallback"""
+        content = self.generate_text_content(result)
+        
+        # Simple PDF-like formatting
+        pdf_content = f"""
+%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+
+4 0 obj
+<<
+/Length {len(content)}
+>>
+stream
+{content}
+endstream
+endobj
+
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000204 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+{len(content) + 300}
+%%EOF
+"""
+        return pdf_content
+    
+    def generate_text_content(self, result):
+        """Generate text content for the report with enhanced formatting"""
+        try:
+            content = result.content
+            company_name = result.request.company_name
+            analysis_type = result.request.analysis_type
+            execution_time = result.execution_time
+            confidence_score = result.confidence_score
+            
+            report_text = f"""
+{'='*100}
+                    🚀 INTELLIVEST AI - INVESTMENT ANALYSIS REPORT
+{'='*100}
+
+📊 REPORT METADATA
+{'-'*50}
+📅 Report Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+🏢 Company Analyzed: {company_name}
+📈 Analysis Type: {analysis_type.title()}
+⚡ Execution Time: {execution_time:.2f} seconds
+🎯 Confidence Score: {confidence_score:.2f}
+✅ Status: {'SUCCESS' if result.status == 'success' else 'ERROR'}
+
+{'='*100}
+                            📋 EXECUTIVE SUMMARY
+{'='*100}
+
+"""
+            
+            if isinstance(content, dict):
+                if "full_result" in content:
+                    report_text += f"""
+🎯 FINAL INVESTMENT THESIS
+{'-'*50}
+{content['full_result']}
+
+"""
+                    # Add individual components if available
+                    if "research" in content:
+                        report_text += f"""
+🔍 RESEARCH ANALYSIS
+{'-'*50}
+{content['research']}
+
+"""
+                    
+                    if "sentiment" in content:
+                        report_text += f"""
+🧠 SENTIMENT ANALYSIS
+{'-'*50}
+{content['sentiment']}
+
+"""
+                    
+                    if "valuation" in content:
+                        report_text += f"""
+💰 VALUATION ANALYSIS
+{'-'*50}
+{content['valuation']}
+
+"""
+                    
+                    if "critique" in content:
+                        report_text += f"""
+🔍 CRITIC'S RECOMMENDATIONS
+{'-'*50}
+{content['critique']}
+
+"""
+                
+                elif "content" in content:
+                    report_text += f"""
+📝 ANALYSIS CONTENT
+{'-'*50}
+{content['content']}
+
+"""
+                
+                # Add models used if available
+                if "models_used" in content:
+                    report_text += f"""
+🤖 MODELS USED
+{'-'*50}
+"""
+                    for model in content['models_used']:
+                        report_text += f"• {model}\n"
+                    report_text += "\n"
+            
+            else:
+                report_text += f"""
+📝 ANALYSIS CONTENT
+{'-'*50}
+{str(content)}
+
+"""
+            
+            report_text += f"""
+{'='*100}
+                            📊 REPORT METADATA
+{'='*100}
+
+🔢 Analysis ID: {id(result)}
+⏰ Timestamp: {datetime.now().isoformat()}
+🔄 System Version: IntelliVest AI v2.0
+🤖 Generated By: Advanced AI-Powered Investment Analysis System
+
+{'='*100}
+                            📋 REPORT FOOTER
+{'='*100}
+
+This report was generated by IntelliVest AI, an advanced AI-powered investment analysis system.
+For questions or support, please contact the system administrator.
+
+© 2024 IntelliVest AI. All rights reserved.
+
+{'='*100}
+                            END OF REPORT
+{'='*100}
+"""
+            
+            return report_text
+            
+        except Exception as e:
+            return f"Error generating text report: {e}"
+    
+    def generate_custom_content(self, result, options):
+        """Generate custom content based on user preferences"""
+        try:
+            content = result.content
+            company_name = result.request.company_name
+            analysis_type = result.request.analysis_type
+            
+            custom_text = f"""
+{'='*80}
+                    INTELLIVEST AI - CUSTOM ANALYSIS REPORT
+{'='*80}
+
+Report Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+Company Analyzed: {company_name}
+Analysis Type: {analysis_type.title()}
+
+{'='*80}
+                            CUSTOM REPORT
+{'='*80}
+
+"""
+            
+            if isinstance(content, dict):
+                if "full_result" in content:
+                    custom_text += f"""
+FINAL INVESTMENT THESIS:
+{content['full_result']}
+
+"""
+                
+                # Include metrics if requested
+                if options.get('include_metrics', True):
+                    custom_text += f"""
+PERFORMANCE METRICS:
+- Execution Time: {result.execution_time:.2f} seconds
+- Confidence Score: {result.confidence_score:.2f}
+- Status: {result.status.title()}
+
+"""
+                
+                # Include workflow if requested
+                if options.get('include_workflow', True):
+                    if "research" in content:
+                        custom_text += f"""
+RESEARCH ANALYSIS:
+{content['research']}
+
+"""
+                    
+                    if "sentiment" in content:
+                        custom_text += f"""
+SENTIMENT ANALYSIS:
+{content['sentiment']}
+
+"""
+                    
+                    if "valuation" in content:
+                        custom_text += f"""
+VALUATION ANALYSIS:
+{content['valuation']}
+
+"""
+                
+                # Include insights if requested
+                if options.get('include_insights', True):
+                    if "critique" in content:
+                        custom_text += f"""
+CRITIC'S INSIGHTS:
+{content['critique']}
+
+"""
+                
+                # Include risks if requested
+                if options.get('include_risks', True):
+                    custom_text += f"""
+RISK ASSESSMENT:
+This analysis includes comprehensive risk assessment as part of the investment thesis.
+Please refer to the main thesis for detailed risk analysis and mitigation strategies.
+
+"""
+            
+            custom_text += f"""
+{'='*80}
+                            CUSTOM REPORT END
+{'='*80}
+
+Report customized based on user preferences:
+- Include Metrics: {options.get('include_metrics', True)}
+- Include Workflow: {options.get('include_workflow', True)}
+- Include Insights: {options.get('include_insights', True)}
+- Include Risks: {options.get('include_risks', True)}
+
+Generated by IntelliVest AI Custom Report Generator
+"""
+            
+            return custom_text
+            
+        except Exception as e:
+            return f"Error generating custom report: {e}"
+    
+    def download_pdf_report_from_history(self, analysis):
+        """Download PDF report from historical analysis"""
+        try:
+            with st.spinner("📄 Generating PDF report from history..."):
+                # Create a mock result object for the historical analysis
+                class MockResult:
+                    def __init__(self, analysis_data):
+                        self.content = analysis_data.get('content', {})
+                        self.request = type('obj', (object,), {
+                            'company_name': analysis_data.get('company_name', 'Unknown'),
+                            'analysis_type': analysis_data.get('analysis_type', 'full')
+                        })
+                        self.execution_time = analysis_data.get('execution_time', 0.0)
+                        self.confidence_score = analysis_data.get('confidence_score', 0.0)
+                        self.status = analysis_data.get('status', 'success')
+                
+                mock_result = MockResult(analysis)
+                pdf_content = self.generate_pdf_content(mock_result)
+                
+                # Create download button
+                st.download_button(
+                    label="📄 Download Historical PDF Report",
+                    data=pdf_content,
+                    file_name=f"historical_analysis_{analysis.get('company_name', 'Unknown').replace(' ', '_')}_{analysis.get('timestamp', datetime.now().strftime('%Y%m%d_%H%M%S'))[:10]}.pdf",
+                    mime="application/pdf",
+                    type="primary"
+                )
+                
+                st.success("✅ Historical PDF report generated successfully!")
+                
+        except Exception as e:
+            st.error(f"❌ Error generating historical PDF report: {e}")
     
     def render_analysis_content(self, content):
         """Render the analysis content"""
@@ -1015,7 +1741,7 @@ class IntelliVestStreamlitApp:
             st.markdown("### 💡 Market Insights")
             
             # Display insights in a nice format
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 sentiment = market_insights.get('market_sentiment', 'neutral')
@@ -1163,6 +1889,22 @@ class IntelliVestStreamlitApp:
                                 if full_analysis:
                                     st.success(f"📋 Showing complete analysis for {full_analysis['company_name']}")
                                     self.render_analysis_details(full_analysis)
+                                    
+                                    # Add download options for historical reports
+                                    st.markdown("### 📥 Download Historical Report")
+                                    col1, col2, col3 = st.columns([1, 2, 1])
+                                    
+                                    with col2:
+                                        if st.button(f"📄 Download PDF Report", key=f"pdf_{actual_analysis_id}", help="Download PDF report"):
+                                            self.download_pdf_report_from_history(full_analysis)
+                                    
+                                    with col2:
+                                        if st.button(f"📝 Word", key=f"word_{actual_analysis_id}", help="Download Word report"):
+                                            self.download_word_report_from_history(full_analysis)
+                                    
+                                    with col3:
+                                        if st.button(f"📋 Text", key=f"text_{actual_analysis_id}", help="Download text report"):
+                                            self.download_text_report_from_history(full_analysis)
                                 else:
                                     st.warning("⚠️ Could not retrieve full analysis details")
                             else:
