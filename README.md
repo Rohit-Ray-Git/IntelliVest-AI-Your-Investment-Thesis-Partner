@@ -153,7 +153,7 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Git
 - API keys for AI models (Google, Groq, etc.)
 
@@ -288,7 +288,7 @@ python-dotenv>=1.0.0
 - **Custom CSS**: Professional styling and themes
 
 ### Backend
-- **Python 3.8+**: Core programming language
+- **Python 3.10+**: Core programming language
 - **CrewAI**: Multi-agent orchestration framework
 - **LangChain**: LLM integration and tool management
 
@@ -372,7 +372,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: [Wiki](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/wiki)
 - **Issues**: [GitHub Issues](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/discussions)
-- **Email**: support@intellivest-ai.com
 
 ---
 
