@@ -288,7 +288,7 @@ python-dotenv>=1.0.0
 - **Custom CSS**: Professional styling and themes
 
 ### Backend
-- **Python 3.8+**: Core programming language
+- **Python 3.10+**: Core programming language
 - **CrewAI**: Multi-agent orchestration framework
 - **LangChain**: LLM integration and tool management
 
