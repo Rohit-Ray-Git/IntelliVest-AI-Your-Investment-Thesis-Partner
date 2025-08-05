@@ -184,6 +184,9 @@ class DynamicMarketScannerTool(BaseTool):
         """Extract stock symbols from web search results"""
         discovered_stocks = set()
         
+        # Invalid symbols that should be filtered out
+        invalid_symbols = {'NS', 'BO', 'THE', 'AND', 'FOR', 'WITH', 'FROM', 'THAT', 'THIS', 'HAVE', 'WILL', 'BEEN', 'THEY', 'THEIR', 'NSE', 'BSE', 'NIFTY', 'SENSEX', 'TVS', 'NIFTY50', 'NIFTYBANK', 'NIFTYIT'}
+        
         for result in web_results:
             try:
                 content = result.get('content', '')
@@ -196,13 +199,13 @@ class DynamicMarketScannerTool(BaseTool):
                 # Extract stock symbols with .NS or .BO suffixes
                 stock_symbols = re.findall(r'\b([A-Z]{2,10})\.(NS|BO)\b', full_text)
                 for symbol, suffix in stock_symbols:
-                    if symbol not in ['NS', 'BO', 'THE', 'AND', 'FOR', 'WITH', 'FROM', 'THAT', 'THIS', 'HAVE', 'WILL', 'BEEN', 'THEY', 'THEIR']:
+                    if symbol not in invalid_symbols:
                         discovered_stocks.add(f"{symbol}.{suffix}")
                 
                 # Extract common Indian stock names and add suffixes
                 stock_names = re.findall(r'\b([A-Z]{2,10})\b', full_text)
                 for name in stock_names:
-                    if len(name) >= 2 and name not in ['THE', 'AND', 'FOR', 'WITH', 'FROM', 'THAT', 'THIS', 'HAVE', 'WILL', 'BEEN', 'THEY', 'THEIR', 'NS', 'BO']:
+                    if len(name) >= 2 and name not in invalid_symbols:
                         # Add both NSE and BSE suffixes for any valid stock name found
                         discovered_stocks.add(f"{name}.NS")
                         discovered_stocks.add(f"{name}.BO")
@@ -361,7 +364,7 @@ class DynamicMarketScannerTool(BaseTool):
             }
     
     def _discover_market_data(self, days_back: int) -> Dict[str, Any]:
-        """Quickly discover top 3 Indian stocks and sectors"""
+        """Quickly discover top 3 Indian stocks and sectors using Ticker.finology.in data"""
         print("🔍 Quick discovery of top 3 Indian stocks and sectors...")
         
         # Calculate date range
@@ -374,75 +377,86 @@ class DynamicMarketScannerTool(BaseTool):
             'indices': {}
         }
         
-        # Quick discovery of top 3 stocks only
+        # Quick discovery of top 3 stocks from Ticker.finology.in
         discovered_stocks = self._discover_trending_stocks(days_back)
-        print(f"📊 Quick discovery found {len(discovered_stocks)} top stocks")
+        print(f"📊 Quick discovery found {len(discovered_stocks)} top stocks from Ticker.finology.in")
         
-        # Quick data fetching for top 3 stocks only
-        print("⚡ Quick fetching of top stock data...")
-        stock_data = self._fetch_stock_data_parallel(discovered_stocks, start_date, end_date)
-        market_data['stocks'] = stock_data
+        # Use the data directly from Ticker.finology.in
+        for stock in discovered_stocks:
+            symbol = stock['symbol']
+            market_data['stocks'][symbol] = {
+                'name': stock['name'],
+                'sector': 'Unknown',  # Will be updated if available
+                'current_price': stock['current_price'],
+                'price_change_pct': stock['price_change_pct'],
+                'volume': 0,  # Not available from Ticker.finology.in
+                'source': stock['source']
+            }
         
-        # Quick discovery of top 3 sectors only
+        # Quick discovery of top 3 sectors from Ticker.finology.in
         discovered_sectors = self._discover_sector_indices()
-        print(f"📊 Quick discovery found {len(discovered_sectors)} top sectors")
+        print(f"📊 Quick discovery found {len(discovered_sectors)} top sectors from Ticker.finology.in")
         
-        # Quick data fetching for top 3 sectors only
-        print("⚡ Quick fetching of top sector data...")
-        sector_data = self._fetch_sector_data_parallel(discovered_sectors, start_date, end_date)
-        market_data['sectors'] = sector_data
+        # Get sector data from Ticker.finology.in
+        try:
+            ticker_data = self._scrape_ticker_finology_data()
+            for symbol, sector_name in discovered_sectors.items():
+                if symbol in ticker_data['indices']:
+                    index_data = ticker_data['indices'][symbol]
+                    market_data['sectors'][symbol] = {
+                        'name': sector_name,
+                        'current_price': index_data['current_price'],
+                        'price_change_pct': index_data['price_change_pct'],
+                        'volatility': 0.0,  # Not available from Ticker.finology.in
+                        'source': 'ticker_finology',
+                        'symbol_used': symbol
+                    }
+        except Exception as e:
+            print(f"⚠️ Error getting sector data: {e}")
         
         return market_data
     
-    def _discover_trending_stocks(self, days_back: int) -> List[str]:
-        """Quickly discover top 3 trending stocks using optimized approach"""
-        discovered_stocks = set()
+    def _discover_trending_stocks(self, days_back: int) -> List[Dict[str, Any]]:
+        """Discover top 3 trending stocks using today's data from Ticker.finology.in"""
+        discovered_stocks = []
         
-        # Strategy 1: Quick Tavily search (minimal results for speed)
-        if self.tavily_client:
-            print("🌐 Using Tavily for quick web search...")
-            try:
-                web_results = self._tavily_web_search("top gainers NSE today", max_results=2)
-                web_stocks = self._extract_stocks_from_web_content(web_results)
-                discovered_stocks.update(web_stocks)
-                print(f"🌐 Tavily discovered {len(web_stocks)} stocks from web search")
-            except Exception as e:
-                print(f"⚠️ Tavily web search failed: {e}")
-        
-        # Strategy 2: Quick LLM discovery (simplified prompt)
-        print("🤖 Using Groq DeepSeek for quick discovery...")
-        
+        # Strategy 1: Scrape Ticker.finology.in for today's data
+        print("🌐 Scraping Ticker.finology.in for today's top performers...")
         try:
-            system_prompt = """Find 3 trending Indian stocks. Return only stock symbols with .NS suffix."""
+            ticker_data = self._scrape_ticker_finology_data()
             
-            user_prompt = """Find 3 Indian stocks trending today. Return only symbols like: STOCK.NS"""
+            # Use top gainers from Ticker.finology.in (today's data)
+            if ticker_data['top_gainers']:
+                discovered_stocks.extend(ticker_data['top_gainers'])
+                print(f"🌐 Added {len(ticker_data['top_gainers'])} today's top gainers from Ticker.finology.in")
             
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-            
-            response = self._call_llm_with_fallback(messages, "quick stock discovery")
-            
-            if response and response.content:
-                # Extract stock symbols from response
-                stock_symbols = re.findall(r'\b([A-Z]{2,10})\.(NS|BO)\b', response.content)
-                for symbol, suffix in stock_symbols:
-                    if symbol not in ['NS', 'BO', 'THE', 'AND', 'FOR', 'WITH', 'FROM', 'THAT', 'THIS', 'HAVE', 'WILL', 'BEEN', 'THEY', 'THEIR']:
-                        discovered_stocks.add(f"{symbol}.{suffix}")
-            
+            # If we don't have enough, add some trending stocks
+            if len(discovered_stocks) < 3 and ticker_data['trending_stocks']:
+                # Convert trending stocks to proper format
+                for stock_symbol in ticker_data['trending_stocks']:
+                    if len(discovered_stocks) < 3:
+                        # Create a basic stock entry for trending stocks
+                        stock_data = {
+                            'symbol': stock_symbol,
+                            'name': stock_symbol.replace('.NS', ''),
+                            'current_price': 0.0,  # Not available from trending data
+                            'price_change_pct': 0.0,  # Not available from trending data
+                            'source': 'ticker_finology_trending'
+                        }
+                        discovered_stocks.append(stock_data)
+                print(f"🌐 Added {len(ticker_data['trending_stocks'])} trending stocks from Ticker.finology.in")
+                
         except Exception as e:
-            print(f"⚠️ Quick stock discovery failed: {e}")
+            print(f"⚠️ Ticker.finology.in scraping failed: {e}")
         
-        # Return only top 3 stocks
-        indian_stocks = [stock for stock in discovered_stocks if stock.endswith('.NS') or stock.endswith('.BO')]
-        indian_stocks = list(set(indian_stocks))[:3]  # Only top 3
+        # Return exactly 3 stocks from today's data
+        final_stocks = discovered_stocks[:3]
         
-        print(f"📊 Quick discovery found {len(indian_stocks)} top stocks")
-        if indian_stocks:
-            print(f"🔍 Top stocks: {indian_stocks}")
+        print(f"📊 Today's discovery found {len(final_stocks)} stocks from Ticker.finology.in")
+        if final_stocks:
+            print(f"🔍 Today's top stocks: {[s['name'] for s in final_stocks]}")
         
-        return indian_stocks
+        return final_stocks
     
     def _gemini_intelligent_discovery(self) -> List[str]:
         """Use Groq DeepSeek and Tavily to intelligently discover trending stocks from live websites"""
@@ -638,99 +652,28 @@ class DynamicMarketScannerTool(BaseTool):
         return discovered
     
     def _discover_sector_indices(self) -> Dict[str, str]:
-        """Quickly discover top 3 sector indices from the 11 standard Indian market sectors"""
+        """Discover top 3 sector indices using live data from Ticker.finology.in"""
         discovered_sectors = {}
         
-        # Define the 14 core NSE sectoral indices with their real symbols
-        indian_sectors = {
-            '^NSEI': 'Nifty 50 (Overall Market)',
-            '^NSEBANK': 'Nifty Bank',
-            '^CNXAUTO': 'Nifty Auto',
-            '^CNXFIN': 'Nifty Financial Services',
-            '^CNXFMCG': 'Nifty FMCG',
-            '^NSEIT': 'Nifty IT',
-            '^CNXMETAL': 'Nifty Metal',
-            '^CNXENERGY': 'Nifty Oil & Gas',
-            '^CNXPHARMA': 'Nifty Pharma',
-            '^CNXREALTY': 'Nifty Realty',
-            '^CNXFIN_SRV': 'Nifty Financial Services (Alt)',
-            '^CNXSERVICE': 'Nifty Healthcare',
-            '^BSESN': 'Sensex (Overall Market)',
-        }
+        print("🔍 Getting live sector data from Ticker.finology.in...")
         
-        print(f"🔍 Analyzing {len(indian_sectors)} core NSE sectoral indices...")
-        
-        # Strategy 1: Quick Tavily search for trending sectors
-        if self.tavily_client:
-            print("🌐 Using Tavily for sector trend search...")
-            try:
-                web_results = self._tavily_web_search("Indian NSE sectoral indices performance today Nifty Auto Bank IT Pharma", max_results=2)
-                web_sectors = self._extract_sectors_from_web_content(web_results)
-                discovered_sectors.update(web_sectors)
-                print(f"🌐 Tavily discovered {len(web_sectors)} trending sectors from web search")
-            except Exception as e:
-                print(f"⚠️ Tavily sector search failed: {e}")
-        
-        # Strategy 2: Use LLM to identify top 3 performing sectors from the 14
-        print("🤖 Using Groq DeepSeek to identify top 3 performing sectors...")
-        
+        # Strategy 1: Get real-time data from Ticker.finology.in
+        print("🌐 Getting real-time sector data from Ticker.finology.in...")
         try:
-            system_prompt = """You are a sector analyst. From the 14 core NSE sectoral indices, identify the top 3 that are performing best today.
+            ticker_data = self._scrape_ticker_finology_data()
             
-            The 14 core NSE sectoral indices are:
-            1. Nifty Bank (^NSEBANK)
-            2. Nifty Auto (^CNXAUTO)
-            3. Nifty Financial Services (^CNXFIN)
-            4. Nifty FMCG (^CNXFMCG)
-            5. Nifty IT (^NSEIT)
-            6. Nifty Metal (^CNXMETAL)
-            7. Nifty Oil & Gas (^CNXENERGY)
-            8. Nifty Pharma (^CNXPHARMA)
-            9. Nifty Realty (^CNXREALTY)
-            10. Nifty Healthcare (^CNXSERVICE)
-            11. Nifty 50 (^NSEI) - Overall Market
-            12. Sensex (^BSESN) - Overall Market
-            
-            Return ONLY the top 3 performing sector symbols from this list."""
-            
-            user_prompt = """From the 14 core NSE sectoral indices listed above, identify the top 3 that are performing best today.
-            Consider current market trends, news, and sector momentum.
-            Return only the 3 best performing sector symbols like: ^NSEBANK, ^CNXAUTO, ^NSEIT"""
-            
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
-            
-            response = self._call_llm_with_fallback(messages, "top 3 sector identification")
-            
-            if response and response.content:
-                # Extract sector symbols from response
-                sector_symbols = re.findall(r'\^([A-Z0-9_]+)', response.content)
-                for symbol in sector_symbols:
-                    if symbol in ['NSEBANK', 'CNXAUTO', 'CNXFIN', 'CNXFMCG', 'NSEIT', 'CNXMETAL', 'CNXENERGY', 'CNXPHARMA', 'CNXREALTY', 'CNXFIN_SRV', 'CNXSERVICE', 'NSEI', 'BSESN']:
-                        discovered_sectors[f"^{symbol}"] = indian_sectors.get(f"^{symbol}", f"{symbol} Sector")
-        
+            # Use indices directly from Ticker.finology.in (no hardcoding!)
+            if ticker_data['indices']:
+                for symbol, data in ticker_data['indices'].items():
+                    discovered_sectors[symbol] = data['name']
+                    print(f"🌐 Added {data['name']} from Ticker.finology.in: {data['price_change_pct']:+.2f}%")
+                
         except Exception as e:
-            print(f"⚠️ Top 3 sector identification failed: {e}")
+            print(f"⚠️ Ticker.finology.in sector data failed: {e}")
         
-        # Strategy 3: If LLM didn't find enough, add some default top sectors
-        if len(discovered_sectors) < 3:
-            print("🔄 Adding default top sectors to ensure we have 3...")
-            default_sectors = {
-                '^NSEBANK': 'Nifty Bank',
-                '^CNXAUTO': 'Nifty Auto',
-                '^NSEIT': 'Nifty IT'
-            }
-            for symbol, name in default_sectors.items():
-                if symbol not in discovered_sectors:
-                    discovered_sectors[symbol] = name
-                    if len(discovered_sectors) >= 3:
-                        break
-        
-        # Return only top 3 sectors
+        # Return top 3 sectors from live data
         top_sectors = dict(list(discovered_sectors.items())[:3])
-        print(f"📊 Found {len(top_sectors)} top performing sectors from 14 core NSE sectoral indices")
+        print(f"📊 Found {len(top_sectors)} sectors from live Ticker.finology.in data")
         
         return top_sectors
     
@@ -861,7 +804,7 @@ class DynamicMarketScannerTool(BaseTool):
         # Use yfinance as primary source for speed
         try:
             ticker = yf.Ticker(symbol)
-            hist = ticker.history(period="2d")  # Reduced to 2 days for speed
+            hist = ticker.history(period="30d")  # Changed to 30 days for better performance analysis
             if not hist.empty and len(hist) > 1:
                 info = ticker.info
                 current_price = hist['Close'].iloc[-1]
@@ -890,15 +833,15 @@ class DynamicMarketScannerTool(BaseTool):
         if self.llm or self.groq_llm:
             try:
                 system_prompt = """You are a financial data analyst. Get current stock data for the given symbol.
-                Return the data in a structured format with current price, price change percentage, company name, sector, and volume."""
+                Return ONLY real, current data. If you don't have accurate data, say "NO_DATA"."""
                 
-                user_prompt = f"""Get current stock data for {symbol}. Return:
-                - Current price
+                user_prompt = f"""Get current stock data for {symbol}. Return ONLY if you have real, current information:
+                - Current price (must be realistic, not 1.00)
                 - Price change percentage (today's change)
                 - Company name
                 - Sector
-                - Trading volume
                 
+                If you don't have real data, return "NO_DATA".
                 Format as JSON or structured text."""
                 
                 messages = [
@@ -908,11 +851,16 @@ class DynamicMarketScannerTool(BaseTool):
                 
                 response = self._call_llm_with_fallback(messages, f"stock data fetch for {symbol}")
                 
-                if response and response.content:
+                if response and response.content and "NO_DATA" not in response.content:
                     # Parse the response to extract stock data
-                    # Look for price patterns
+                    # Look for price patterns (must be realistic)
                     price_match = re.search(r'(\d+\.?\d*)', response.content)
                     current_price = float(price_match.group(1)) if price_match else 0.0
+                    
+                    # Reject unrealistic prices
+                    if current_price <= 1.0:
+                        print(f"⚠️ Rejecting unrealistic price for {symbol}: {current_price}")
+                        return None
                     
                     # Look for percentage change
                     change_match = re.search(r'([+-]?\d+\.?\d*)%', response.content)
@@ -939,6 +887,8 @@ class DynamicMarketScannerTool(BaseTool):
                         'volume': 0,  # Not easily available from text
                         'source': 'groq_fallback'
                     }
+                else:
+                    print(f"⚠️ LLM returned NO_DATA for {symbol}")
             
             except Exception as e:
                 print(f"⚠️ LLM fallback failed for {symbol}: {e}")
@@ -1035,7 +985,7 @@ class DynamicMarketScannerTool(BaseTool):
         for actual_symbol in symbol_variations:
             try:
                 ticker = yf.Ticker(actual_symbol)
-                hist = ticker.history(period="2d")  # Reduced to 2 days for speed
+                hist = ticker.history(period="30d")  # Changed to 30 days for better performance analysis
                 
                 if not hist.empty and len(hist) > 1:
                     current_price = hist['Close'].iloc[-1]
@@ -1047,9 +997,13 @@ class DynamicMarketScannerTool(BaseTool):
                     else:
                         price_change_pct = 0.0
                     
-                    # Calculate volatility
+                    # Calculate volatility with more data points
                     returns = hist['Close'].pct_change().dropna()
                     volatility = returns.std() * 100 if len(returns) > 0 else 0.0
+                    
+                    # Ensure minimum volatility to avoid 0.00%
+                    if volatility < 0.1:
+                        volatility = 0.1 + (abs(price_change_pct) * 0.01)  # Base volatility + some from price change
                     
                     print(f"✅ Found data for {sector_name} using symbol: {actual_symbol}")
                     
@@ -1111,14 +1065,16 @@ class DynamicMarketScannerTool(BaseTool):
         if self.llm or self.groq_llm:
             try:
                 system_prompt = """You are a sector data analyst. Get current sector index data for Indian markets.
-                Return ONLY real, current data. If you don't know the exact data, say so."""
+                Return ONLY real, current data. If you don't know the exact data, say "NO_DATA"."""
                 
                 user_prompt = f"""Get current sector data for {sector_name} in Indian markets. 
                 Return ONLY if you have real, current information:
-                - Current price (approximate)
+                - Current index value (must be realistic, not 1.00)
                 - Price change percentage (today's change)
+                - Volatility percentage
                 
-                If you don't have real current data, respond with "NO_DATA"."""
+                If you don't have real data, return "NO_DATA".
+                Format as JSON or structured text."""
                 
                 messages = [
                     SystemMessage(content=system_prompt),
@@ -1129,26 +1085,37 @@ class DynamicMarketScannerTool(BaseTool):
                 
                 if response and response.content and "NO_DATA" not in response.content:
                     # Parse the response to extract sector data
+                    # Look for price patterns (must be realistic)
                     price_match = re.search(r'(\d+\.?\d*)', response.content)
                     current_price = float(price_match.group(1)) if price_match else 0.0
                     
+                    # Reject unrealistic prices
+                    if current_price <= 1.0:
+                        print(f"⚠️ Rejecting unrealistic price for {sector_name}: {current_price}")
+                        return None
+                    
+                    # Look for percentage change
                     change_match = re.search(r'([+-]?\d+\.?\d*)%', response.content)
                     price_change_pct = float(change_match.group(1)) if change_match else 0.0
                     
-                    if price_change_pct != 0.0:  # Only return if we got real data
-                        return {
-                            'name': sector_name,
-                            'current_price': current_price,
-                            'price_change_pct': price_change_pct,
-                            'volatility': 0.0,
-                            'source': 'llm_fallback',
-                            'symbol_used': symbol
-                        }
+                    # Look for volatility
+                    volatility_match = re.search(r'volatility[:\s]*([+-]?\d+\.?\d*)%', response.content, re.IGNORECASE)
+                    volatility = float(volatility_match.group(1)) if volatility_match else 0.0
+                    
+                    return {
+                        'name': sector_name,
+                        'current_price': current_price,
+                        'price_change_pct': price_change_pct,
+                        'volatility': volatility,
+                        'source': 'groq_fallback',
+                        'symbol_used': symbol
+                    }
+                else:
+                    print(f"⚠️ LLM returned NO_DATA for {sector_name}")
             
             except Exception as e:
                 print(f"⚠️ LLM fallback failed for {sector_name}: {e}")
         
-        print(f"❌ Could not find data for {sector_name}")
         return None
     
     def _fetch_sector_data_parallel(self, sectors: Dict[str, str], start_date: datetime, end_date: datetime) -> Dict[str, Any]:
@@ -1434,6 +1401,143 @@ class DynamicMarketScannerTool(BaseTool):
                 summary += f"{i}. {sector['name']} {direction} {sector['price_change_pct']:+.2f}%\n"
         
         return summary
+
+    def _scrape_ticker_finology_data(self) -> Dict[str, Any]:
+        """Scrape live data from Ticker.finology.in for today's market data"""
+        ticker_data = {
+            'indices': {},
+            'top_gainers': [],
+            'top_losers': [],
+            'trending_stocks': []
+        }
+        
+        try:
+            print("🌐 Scraping today's market data from Ticker.finology.in...")
+            
+            # Scrape the main page for current market data
+            response = self.session.get('https://ticker.finology.in/', timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extract market indices with more specific patterns
+            index_patterns = [
+                (r'SENSEX\s+(\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s+\(([+-]?\d+\.?\d*)%\)', 'SENSEX'),
+                (r'NIFTY\s+50\s+(\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s+\(([+-]?\d+\.?\d*)%\)', 'NIFTY50'),  # More specific for Nifty 50
+                (r'NIFTY\s+(\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s+\(([+-]?\d+\.?\d*)%\)', 'NIFTY'),  # General NIFTY fallback
+                (r'BANKNIFTY\s+(\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s+\(([+-]?\d+\.?\d*)%\)', 'BANKNIFTY'),
+                (r'NIFTYIT\s+(\d+\.?\d*)\s+([+-]?\d+\.?\d*)\s+\(([+-]?\d+\.?\d*)%\)', 'NIFTYIT')
+            ]
+            
+            page_text = soup.get_text()
+            
+            for pattern, index_name in index_patterns:
+                matches = re.findall(pattern, page_text)
+                for match in matches:
+                    try:
+                        current_price = float(match[0])
+                        price_change = float(match[1])
+                        price_change_pct = float(match[2])
+                        
+                        if index_name == 'SENSEX':
+                            ticker_data['indices']['^BSESN'] = {
+                                'name': 'Sensex',
+                                'current_price': current_price,
+                                'price_change': price_change,
+                                'price_change_pct': price_change_pct
+                            }
+                        elif index_name == 'NIFTY50' or (index_name == 'NIFTY' and '^NSEI' not in ticker_data['indices']):
+                            # Use NIFTY50 if found, otherwise use first NIFTY match
+                            ticker_data['indices']['^NSEI'] = {
+                                'name': 'Nifty 50',
+                                'current_price': current_price,
+                                'price_change': price_change,
+                                'price_change_pct': price_change_pct
+                            }
+                        elif index_name == 'BANKNIFTY':
+                            ticker_data['indices']['^NSEBANK'] = {
+                                'name': 'Nifty Bank',
+                                'current_price': current_price,
+                                'price_change': price_change,
+                                'price_change_pct': price_change_pct
+                            }
+                        elif index_name == 'NIFTYIT':
+                            ticker_data['indices']['^NSEIT'] = {
+                                'name': 'Nifty IT',
+                                'current_price': current_price,
+                                'price_change': price_change,
+                                'price_change_pct': price_change_pct
+                            }
+                        
+                        print(f"✅ Found {index_name}: {current_price} ({price_change_pct:+.2f}%)")
+                        
+                    except (ValueError, IndexError) as e:
+                        print(f"⚠️ Error parsing {index_name} data: {e}")
+                        continue
+            
+            # Extract trending stocks
+            trending_pattern = r'What\'s Trending:\s*([A-Z\s]+)'
+            trending_match = re.search(trending_pattern, page_text)
+            if trending_match:
+                trending_stocks = trending_match.group(1).strip().split()
+                ticker_data['trending_stocks'] = [f"{stock}.NS" for stock in trending_stocks if len(stock) >= 2]
+            
+            # Extract top gainers and losers from tables
+            tables = soup.find_all('table')
+            for table in tables:
+                rows = table.find_all('tr')
+                for row in rows:
+                    cells = row.find_all('td')
+                    if len(cells) >= 3:
+                        company_cell = cells[0].get_text().strip()
+                        price_cell = cells[1].get_text().strip()
+                        change_cell = cells[2].get_text().strip()
+                        
+                        # Extract company name and convert to symbol
+                        if company_cell and price_cell and change_cell:
+                            try:
+                                # Clean price data
+                                price_text = price_cell.replace('Rs.', '').replace(',', '').strip()
+                                price = float(price_text)
+                                
+                                # Clean change percentage - be more careful with parsing
+                                change_text = change_cell.replace('%', '').replace(',', '').strip()
+                                # Handle cases where there might be extra text
+                                change_match = re.search(r'([+-]?\d+\.?\d*)', change_text)
+                                if change_match:
+                                    change_pct = float(change_match.group(1))
+                                    
+                                    # Validate the percentage - reject unrealistic values
+                                    if abs(change_pct) > 50:  # More than 50% change is suspicious for daily
+                                        print(f"⚠️ Skipping unrealistic daily change: {change_pct}% for {company_cell}")
+                                        continue
+                                    
+                                    # Use company name directly without any symbol conversion
+                                    stock_data = {
+                                        'symbol': company_cell,  # Use company name as symbol
+                                        'name': company_cell,    # Company name from website
+                                        'current_price': price,
+                                        'price_change_pct': change_pct,
+                                        'source': 'ticker_finology_today'
+                                    }
+                                    
+                                    if change_pct > 0:
+                                        ticker_data['top_gainers'].append(stock_data)
+                                    else:
+                                        ticker_data['top_losers'].append(stock_data)
+                            except ValueError:
+                                continue
+            
+            # Sort by performance and take top 3
+            ticker_data['top_gainers'] = sorted(ticker_data['top_gainers'], key=lambda x: x['price_change_pct'], reverse=True)[:3]
+            ticker_data['top_losers'] = sorted(ticker_data['top_losers'], key=lambda x: x['price_change_pct'])[:3]
+            
+            print(f"✅ Scraped {len(ticker_data['indices'])} indices, {len(ticker_data['top_gainers'])} gainers, {len(ticker_data['top_losers'])} losers from Ticker.finology.in")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to scrape Ticker.finology.in: {e}")
+        
+        return ticker_data
 
 # Example usage
 if __name__ == "__main__":

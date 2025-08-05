@@ -108,12 +108,35 @@ st.set_page_config(
     page_title="IntelliVest AI - Investment Analysis",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
 )
 
 # Custom CSS for professional styling
 st.markdown("""
 <style>
+    /* Pitch black theme */
+    .main {
+        background-color: #000000 !important;
+    }
+    
+    .stApp {
+        background-color: #000000 !important;
+    }
+    
+    .block-container {
+        background-color: #000000 !important;
+    }
+    
+    .stMarkdown {
+        background-color: #000000 !important;
+    }
+    
+    /* Text colors for better contrast on black */
     .main-header {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
         padding: 2.5rem;
@@ -131,13 +154,14 @@ st.markdown("""
         margin-bottom: 0.5rem;
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         letter-spacing: 2px;
+        color: #ffffff !important;
     }
     
     .main-header h3 {
         font-size: 1.5rem;
         font-weight: 600;
         margin-bottom: 1rem;
-        color: #f8f9fa;
+        color: #f8f9fa !important;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     }
     
@@ -145,10 +169,42 @@ st.markdown("""
         font-size: 1.1rem;
         font-weight: 400;
         line-height: 1.6;
-        color: #e9ecef;
+        color: #e9ecef !important;
         max-width: 800px;
         margin: 0 auto;
         text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Make all text white for better visibility on black */
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+    
+    p, div, span {
+        color: #ffffff !important;
+    }
+    
+    /* Streamlit specific text colors */
+    .stMarkdown, .stText, .stMetric {
+        color: #ffffff !important;
+    }
+    
+    /* Info boxes with better contrast */
+    .stAlert {
+        background-color: #1a1a1a !important;
+        border: 1px solid #333333 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Cards with better styling for black theme */
+    .stock-card, .sector-card {
+        background-color: #1a1a1a !important;
+        border: 2px solid #333333 !important;
+        border-radius: 15px !important;
+        padding: 1.5rem !important;
+        text-align: center !important;
+        margin: 10px 0 !important;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
     }
     
     .stButton > button {
@@ -171,6 +227,7 @@ st.markdown("""
         gap: 0px;
         width: 100%;
         justify-content: space-between;
+        background-color: #1a1a1a !important;
     }
     
     .stTabs [data-baseweb="tab"] {
@@ -179,10 +236,13 @@ st.markdown("""
         padding: 10px 15px;
         font-size: 14px;
         font-weight: 500;
+        color: #ffffff !important;
+        background-color: #1a1a1a !important;
     }
     
     .stTabs [data-baseweb="tab-panel"] {
         padding-top: 20px;
+        background-color: #000000 !important;
     }
     
     /* Ensure full width layout */
@@ -190,6 +250,7 @@ st.markdown("""
         max-width: 100%;
         padding-left: 2rem;
         padding-right: 2rem;
+        background-color: #000000 !important;
     }
     
     /* Financial facts styling */
@@ -227,6 +288,48 @@ st.markdown("""
     .stProgress > div > div > div > div {
         background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
         border-radius: 10px;
+    }
+    
+    /* Dataframe styling for black theme */
+    .stDataFrame {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+    
+    /* Metric styling */
+    .stMetric {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+    
+    /* Caption styling */
+    .stCaption {
+        color: #cccccc !important;
+    }
+    
+    /* Sidebar styling for black theme */
+    .css-1d391kg {
+        background-color: #1a1a1a !important;
+    }
+    
+    .css-1lcbmhc {
+        background-color: #1a1a1a !important;
+    }
+    
+    /* Selectbox and input styling */
+    .stSelectbox, .stTextInput, .stTextArea, .stNumberInput {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+    
+    /* Checkbox styling */
+    .stCheckbox {
+        color: #ffffff !important;
+    }
+    
+    /* Slider styling */
+    .stSlider {
+        background-color: #1a1a1a !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -266,7 +369,7 @@ class IntelliVestStreamlitApp:
         """Update session state metrics from system status"""
         # This method is kept for compatibility but metrics are no longer displayed
         pass
-    
+            
     def render_header(self):
         """Render the main header"""
         st.markdown("""
@@ -280,13 +383,13 @@ class IntelliVestStreamlitApp:
     def render_sidebar(self):
         """Render the sidebar with configuration options"""
         st.sidebar.markdown("## ⚙️ Configuration")
-        
-        # Analysis type selection
+            
+            # Analysis type selection
         analysis_type = st.sidebar.selectbox(
             "📊 Analysis Type",
             ["full", "research", "sentiment", "valuation", "thesis"],
-            help="Choose the type of analysis to perform"
-        )
+                help="Choose the type of analysis to perform"
+            )
         
         # Parallel processing configuration
         st.sidebar.markdown("### ⚡ Performance Settings")
@@ -297,12 +400,12 @@ class IntelliVestStreamlitApp:
             value=10,
             help="Number of concurrent workers for parallel processing"
         )
-        
-        # Advanced options
+            
+            # Advanced options
         st.sidebar.markdown("### 🔧 Advanced Options")
         include_tools = st.sidebar.checkbox(
             "Include Custom Tools",
-            value=True,
+                    value=True,
             help="Use custom investment analysis tools"
         )
         
@@ -313,10 +416,10 @@ class IntelliVestStreamlitApp:
         )
         
         max_fallbacks = st.sidebar.slider(
-            "Max Fallbacks",
-            min_value=1,
-            max_value=5,
-            value=3,
+                    "Max Fallbacks",
+                    min_value=1,
+                    max_value=5,
+                    value=3,
             help="Maximum number of fallback models to use"
         )
         
@@ -556,9 +659,9 @@ class IntelliVestStreamlitApp:
         
         if isinstance(content, dict):
             if "full_result" in content:
-                # Full analysis from CrewAI - show the complete detailed result
-                st.markdown("### 🎯 Final Investment Thesis (Complete)")
-                st.markdown(content["full_result"])
+                # Full analysis from CrewAI - show the individual components instead of repeating final thesis
+                st.markdown("### 🔄 Analysis Workflow Components")
+                st.info("**Note:** The final investment thesis is shown in the Summary tab above. Here are the individual analysis components:")
                 
                 # Show the analysis workflow
                 st.markdown("---")
@@ -737,13 +840,6 @@ class IntelliVestStreamlitApp:
         """Render the optimized market discovery section with top 3 performers and sectors"""
         st.markdown("## 📈 Market Highlights")
         
-        # Add a description of the optimized scanner
-        st.info("""
-        🚀 **Advanced Market Scanner**: Now using **14 core NSE sectoral indices** with real Yahoo Finance symbols for authentic market data. 
-        Powered by Groq DeepSeek + Tavily web search for dynamic discovery of top 3 performing stocks and sectors.
-        Results are cached for 2 minutes to ensure fast loading.
-        """)
-        
         # Load market highlights (cached)
         market_data = self.load_market_highlights()
         
@@ -755,17 +851,6 @@ class IntelliVestStreamlitApp:
         if st.session_state.market_highlights_timestamp:
             cache_age = datetime.now() - st.session_state.market_highlights_timestamp
             st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago | ⚡ Optimized for speed | 🚀 ~32s scan time | 📈 Real NSE indices")
-        
-        # Add performance metrics
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("⚡ Scan Speed", "~32s", "Optimized")
-        with col2:
-            st.metric("🤖 AI Model", "Groq DeepSeek", "Primary")
-        with col3:
-            st.metric("🌐 Web Search", "Tavily", "Real-time")
-        with col4:
-            st.metric("📈 NSE Indices", "14 Sectors", "Authentic")
         
         # Add refresh button with better styling
         col1, col2 = st.columns([1, 4])
@@ -791,34 +876,33 @@ class IntelliVestStreamlitApp:
                 with cols[i]:
                     direction = "📈" if stock['price_change_pct'] > 0 else "📉"
                     stock_symbol = stock['symbol'].replace('.NS', '').replace('.BO', '')
-                    price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
                     
-                    # Better source badge based on actual source
-                    source = stock.get('source', '')
-                    if 'yfinance' in source:
-                        source_badge = "📊 Yahoo"
-                    elif 'web_search' in source:
-                        source_badge = "🌐 Web"
-                    elif 'llm' in source:
-                        source_badge = "🤖 AI"
+                    # Improved color coding with better contrast
+                    if stock['price_change_pct'] > 0:
+                        color = "#28a745"  # Green
+                        bg_color = "#1a1a1a"  # Dark background for black theme
+                        border_color = "#28a745"  # Green border
                     else:
-                        source_badge = "📈 Data"
+                        color = "#dc3545"  # Red
+                        bg_color = "#1a1a1a"  # Dark background for black theme
+                        border_color = "#dc3545"  # Red border
                     
-                    # Color coding based on performance
-                    color = "green" if stock['price_change_pct'] > 0 else "red"
-                    bg_color = "#e8f5e8" if stock['price_change_pct'] > 0 else "#ffe8e8"
+                    # Always use rupees for Indian stocks
+                    price_symbol = "₹"
+                    
+                    # Better category display - show source type instead of "Unknown"
+                    category = "Today's Gainer" if stock['price_change_pct'] > 0 else "Today's Loser"
                     
                     st.markdown(f"""
-                    <div style="padding: 1.5rem; border: 2px solid {color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 10px 0;">
-                        <h3 style="margin: 0; color: {color};">{stock_symbol}</h3>
-                        <p style="font-weight: bold; margin: 5px 0;">{stock['name']}</p>
-                        <p style="font-size: 2rem; font-weight: bold; color: {color}; margin: 10px 0;">
-                            {direction} {stock['price_change_pct']:+.2f}%
-                        </p>
-                        <p style="font-size: 1.2rem; margin: 5px 0;">{price_symbol}{stock['current_price']:,.2f}</p>
-                        <p style="font-size: 0.9rem; color: #666; margin: 5px 0;">{stock['sector']}</p>
-                        <span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">{source_badge}</span>
-                    </div>
+                        <div style="padding: 1rem; border: 2px solid {border_color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 5px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+                            <h3 style="margin: 0; color: {color}; font-size: 1.3rem; font-weight: bold; text-align: center;">{stock_symbol}</h3>
+                            <p style="font-weight: bold; margin: 6px 0; color: #ffffff; font-size: 0.9rem; text-align: center;">{stock['name']}</p>
+                            <p style="font-size: 1.5rem; font-weight: bold; color: {color}; margin: 8px 0; text-align: center;">
+                                {direction} {stock['price_change_pct']:+.2f}%
+                            </p>
+                            <p style="font-size: 1rem; margin: 6px 0; color: #ffffff; font-weight: 600; text-align: center;">{price_symbol}{stock['current_price']:,.2f}</p>
+                            <p style="font-size: 0.8rem; color: #cccccc; margin: 6px 0; font-weight: 500; text-align: center;">{category}</p>
+                        </div>
                     """, unsafe_allow_html=True)
         else:
             st.warning("⚠️ No stocks discovered. This might be due to:")
@@ -842,32 +926,33 @@ class IntelliVestStreamlitApp:
                 with sector_cols[i]:
                     direction = "📈" if sector['price_change_pct'] > 0 else "📉"
                     sector_name = sector['name'].replace(' Sector', '').replace(' Index', '').replace(' (Overall Market)', '')
-                    source = sector.get('source', '')
                     
-                    # Better source badge based on actual source
-                    if 'yfinance' in source:
-                        source_badge = "📊 Yahoo"
-                    elif 'web_search' in source:
-                        source_badge = "🌐 Web"
-                    elif 'llm' in source:
-                        source_badge = "🤖 AI"
+                    # Improved color coding with better contrast
+                    if sector['price_change_pct'] > 0:
+                        color = "#28a745"  # Green
+                        bg_color = "#1a1a1a"  # Dark background for black theme
+                        border_color = "#28a745"  # Green border
                     else:
-                        source_badge = "📈 Data"
+                        color = "#dc3545"  # Red
+                        bg_color = "#1a1a1a"  # Dark background for black theme
+                        border_color = "#dc3545"  # Red border
                     
-                    # Color coding based on performance
-                    color = "green" if sector['price_change_pct'] > 0 else "red"
-                    bg_color = "#e8f5e8" if sector['price_change_pct'] > 0 else "#ffe8e8"
+                    # Better volatility display - show market status instead of 0.00%
+                    volatility = sector.get('volatility', 0)
+                    if volatility is None or pd.isna(volatility) or volatility == 0:
+                        volatility_text = "Live Market Data"
+                    else:
+                        volatility_text = f"Volatility: {volatility:.2f}%"
                     
                     st.markdown(f"""
-                    <div style="padding: 1.5rem; border: 2px solid {color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 10px 0;">
-                        <h3 style="margin: 0; color: {color};">{sector_name}</h3>
-                        <p style="font-size: 2rem; font-weight: bold; color: {color}; margin: 10px 0;">
-                            {direction} {sector['price_change_pct']:+.2f}%
-                        </p>
-                        <p style="font-size: 1.2rem; margin: 5px 0;">₹{sector['current_price']:,.2f}</p>
-                        <p style="font-size: 0.9rem; color: #666; margin: 5px 0;">Volatility: {sector.get('volatility', 0):.2f}%</p>
-                        <span style="background-color: {color}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">{source_badge}</span>
-                    </div>
+                        <div style="padding: 1rem; border: 2px solid {border_color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 5px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+                            <h3 style="margin: 0; color: {color}; font-size: 1.3rem; font-weight: bold; text-align: center;">{sector_name}</h3>
+                            <p style="font-size: 1.5rem; font-weight: bold; color: {color}; margin: 8px 0; text-align: center;">
+                                {direction} {sector['price_change_pct']:+.2f}%
+                            </p>
+                            <p style="font-size: 1rem; margin: 6px 0; color: #ffffff; font-weight: 600; text-align: center;">₹{sector['current_price']:,.2f}</p>
+                            <p style="font-size: 0.8rem; color: #cccccc; margin: 6px 0; font-weight: 500; text-align: center;">{volatility_text}</p>
+                        </div>
                     """, unsafe_allow_html=True)
             
             # Add sector performance chart
@@ -884,24 +969,45 @@ class IntelliVestStreamlitApp:
                 if sector_data:
                     df_sectors = pd.DataFrame(sector_data)
                     
-                    # Create bar chart with better styling
+                    # Create bar chart with dark theme styling
                     fig = go.Figure(data=go.Bar(
                         x=df_sectors['Sector'], 
                         y=df_sectors['Performance'], 
-                        marker_color=df_sectors['Performance'].apply(lambda x: 'green' if x > 0 else 'red'),
+                        marker_color=df_sectors['Performance'].apply(lambda x: '#28a745' if x > 0 else '#dc3545'),
                         text=df_sectors['Performance'].apply(lambda x: f'{x:+.2f}%'),
                         textposition='auto'
                     ))
                     fig.update_layout(
-                        title="NSE Sectoral Indices Performance Overview",
+                        title={
+                            'text': "NSE Sectoral Indices Performance Overview",
+                            'font': {'color': '#ffffff', 'size': 16}
+                        },
                         xaxis_title="Sector",
                         yaxis_title="Performance (%)",
                         height=400,
                         showlegend=False,
-                        plot_bgcolor='white',
-                        paper_bgcolor='white'
+                        plot_bgcolor='#1a1a1a',  # Dark background matching cards
+                        paper_bgcolor='#000000',  # Pitch black background
+                        font={'color': '#ffffff'},  # White text
+                        xaxis={
+                            'gridcolor': '#333333',
+                            'tickfont': {'color': '#ffffff'}
+                        },
+                        yaxis={
+                            'gridcolor': '#333333',
+                            'tickfont': {'color': '#ffffff'}
+                        }
                     )
                     st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("⚠️ No sectors discovered. This might be due to:")
+            st.markdown("""
+            - **Market scanner optimization in progress**
+            - **Network connectivity issues**
+            - **API rate limits**
+            
+            Try clicking **🔄 Refresh** to retry the discovery process.
+            """)
         
         # Add market insights if available
         market_insights = market_data.get('market_insights', {})
@@ -1090,7 +1196,7 @@ class IntelliVestStreamlitApp:
                 with col1:
                     successful = len([h for h in history if h['status'] == 'success'])
                     st.metric("Successful", successful)
-                
+                    
                 with col2:
                     avg_time = sum(h['execution_time'] for h in history) / len(history) if history else 0
                     st.metric("Avg Time", f"{avg_time:.1f}s")
@@ -1123,11 +1229,11 @@ class IntelliVestStreamlitApp:
         with col1:
             st.info(f"**Company:** {analysis['company_name']}")
             st.info(f"**Type:** {analysis['analysis_type'].title()}")
-        
+                
         with col2:
             st.info(f"**Status:** {analysis['status'].title()}")
             st.info(f"**Execution Time:** {analysis['execution_time']:.2f}s")
-        
+                
         with col3:
             st.info(f"**Confidence:** {analysis['confidence_score']:.2f}")
             st.info(f"**Date:** {analysis['timestamp'][:10]}")
@@ -1214,7 +1320,7 @@ class IntelliVestStreamlitApp:
                 st.info(f"**CrewAI Available:** {status['crewai_available']}")
                 st.info(f"**Tools Available:** {status['tools_available']}")
                 st.info(f"**History Count:** {status['analysis_history_count']}")
-            
+                
             with col2:
                 st.markdown("### 📊 Performance Metrics")
                 st.info(f"**Total Analyses:** {status['metrics']['total_analyses']}")
@@ -1245,7 +1351,7 @@ class IntelliVestStreamlitApp:
         
         with col1:
             st.info("🔍 Dynamically discovering trending stocks and sectors...")
-        
+                        
         with col2:
             if st.button("🔄 Refresh Market Data", help="Update dynamic market data"):
                 st.session_state.market_highlights_loaded = False
@@ -1319,7 +1425,7 @@ class IntelliVestStreamlitApp:
                             "Symbol": stock_symbol,
                             "Name": stock['name'][:30] + "..." if len(stock['name']) > 30 else stock['name'],
                             "Sector": stock['sector'],
-                            "Price": f"${stock['current_price']}" if not stock['symbol'].endswith('.NS') else f"₹{stock['current_price']}",
+                            "Price": f"₹{stock['current_price']}",  # Always use rupees
                             "Change": f"{stock['price_change_pct']:+.2f}%",
                             "Volatility": f"{stock['volatility']:.1f}%",
                             "Score": f"{stock['performance_score']:.1f}"
@@ -1347,16 +1453,15 @@ class IntelliVestStreamlitApp:
                             with cols[i]:
                                 direction = "📈" if stock['price_change_pct'] > 0 else "📉"
                                 stock_symbol = stock['symbol'].replace('.NS', '')
-                                price_symbol = "₹" if stock['symbol'].endswith('.NS') else "$"
                                 st.markdown(f"""
-                                <div style="padding: 1rem; border: 1px solid #ddd; border-radius: 10px; text-align: center;">
-                                    <h4>{stock_symbol}</h4>
-                                    <p><strong>{stock['name']}</strong></p>
-                                    <p style="font-size: 1.5rem; color: {'green' if stock['price_change_pct'] > 0 else 'red'};">
+                                <div style="padding: 1rem; border: 1px solid #333333; border-radius: 10px; text-align: center; background-color: #1a1a1a; color: #ffffff;">
+                                    <h4 style="color: #ffffff;">{stock_symbol}</h4>
+                                    <p style="color: #ffffff;"><strong>{stock['name']}</strong></p>
+                                    <p style="font-size: 1.5rem; color: {'#28a745' if stock['price_change_pct'] > 0 else '#dc3545'};">
                                         {direction} {stock['price_change_pct']:+.2f}%
                                     </p>
-                                    <p>{price_symbol}{stock['current_price']}</p>
-                                    <p><small>{stock['sector']}</small></p>
+                                    <p style="color: #ffffff;">₹{stock['current_price']}</p>
+                                    <p style="color: #cccccc;"><small>{stock['sector']}</small></p>
                                 </div>
                                 """, unsafe_allow_html=True)
                 
