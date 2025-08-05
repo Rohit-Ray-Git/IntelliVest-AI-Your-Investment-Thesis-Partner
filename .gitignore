@@ -34,12 +34,8 @@ MANIFEST
 .env.test.local
 .env.production.local
 
-# IDE
+# IDE (VSCode only)
 .vscode/
-.idea/
-*.swp
-*.swo
-*~
 
 # OS
 .DS_Store
