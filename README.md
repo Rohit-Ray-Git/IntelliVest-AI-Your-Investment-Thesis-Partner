@@ -372,7 +372,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Documentation**: [Wiki](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/wiki)
 - **Issues**: [GitHub Issues](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/discussions)
-- **Email**: support@intellivest-ai.com
 
 ---
 
