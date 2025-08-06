@@ -59,27 +59,96 @@ class RAGSystem:
     
     def chunk_text(self, text: str) -> List[str]:
         """Split text into meaningful chunks"""
-        # Use tiktoken for token counting
-        encoding = tiktoken.get_encoding("cl100k_base")
-        
-        chunks = []
-        tokens = encoding.encode(text)
-        
-        for i in range(0, len(tokens), self.chunk_size - self.chunk_overlap):
-            chunk_tokens = tokens[i:i + self.chunk_size]
-            chunk_text = encoding.decode(chunk_tokens)
+        try:
+            # Validate input
+            if not text or not text.strip():
+                print("⚠️ Empty text provided for chunking")
+                return []
             
-            # Clean and validate chunk
-            chunk_text = chunk_text.strip()
-            if len(chunk_text) > 50:  # Minimum meaningful chunk size
-                chunks.append(chunk_text)
+            # Clean the text
+            text = text.strip()
+            
+            # Use tiktoken for token counting
+            encoding = tiktoken.get_encoding("cl100k_base")
+            
+            chunks = []
+            tokens = encoding.encode(text)
+            
+            # If text is too short, return it as a single chunk
+            if len(tokens) <= self.chunk_size:
+                if len(text) > 50:  # Minimum meaningful chunk size
+                    chunks.append(text)
+                return chunks
+            
+            # Split into chunks with overlap
+            for i in range(0, len(tokens), self.chunk_size - self.chunk_overlap):
+                chunk_tokens = tokens[i:i + self.chunk_size]
+                chunk_text = encoding.decode(chunk_tokens)
+                
+                # Clean and validate chunk
+                chunk_text = chunk_text.strip()
+                if len(chunk_text) > 50:  # Minimum meaningful chunk size
+                    chunks.append(chunk_text)
+            
+            # If no chunks were created, try a different approach
+            if not chunks:
+                # Split by paragraphs or sentences
+                paragraphs = text.split('\n\n')
+                for para in paragraphs:
+                    para = para.strip()
+                    if len(para) > 50:
+                        chunks.append(para)
+                
+                # If still no chunks, split by sentences
+                if not chunks:
+                    sentences = re.split(r'[.!?]+', text)
+                    for sentence in sentences:
+                        sentence = sentence.strip()
+                        if len(sentence) > 50:
+                            chunks.append(sentence)
+            
+            print(f"📝 Created {len(chunks)} chunks from {len(text)} characters")
+            return chunks
+            
+        except Exception as e:
+            print(f"❌ Error chunking text: {e}")
+            return []
+    
+    def _clean_metadata_for_chromadb(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Clean metadata values to be ChromaDB compatible"""
+        cleaned_metadata = {}
         
-        return chunks
+        for key, value in metadata.items():
+            if isinstance(value, (str, int, float, bool, type(None))):
+                # These types are directly compatible
+                cleaned_metadata[key] = value
+            elif isinstance(value, list):
+                # Convert lists to comma-separated strings
+                cleaned_metadata[key] = ', '.join(str(item) for item in value)
+            elif isinstance(value, dict):
+                # Convert dicts to JSON strings
+                cleaned_metadata[key] = json.dumps(value)
+            else:
+                # Convert everything else to string
+                cleaned_metadata[key] = str(value)
+        
+        return cleaned_metadata
     
     def store_report(self, company_name: str, report_content: str, report_metadata: Dict[str, Any]) -> str:
         """Store investment report in vector database"""
         try:
             print(f"💾 Storing report for {company_name}")
+            
+            # Validate input content
+            if not report_content or not report_content.strip():
+                print(f"⚠️ Empty report content for {company_name}, skipping storage")
+                return None
+            
+            # Clean the content
+            report_content = report_content.strip()
+            if len(report_content) < 100:  # Minimum content length
+                print(f"⚠️ Report content too short for {company_name} ({len(report_content)} chars), skipping storage")
+                return None
             
             # Generate unique report ID
             report_id = f"{company_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -88,8 +157,20 @@ class RAGSystem:
             chunks = self.chunk_text(report_content)
             print(f"📝 Created {len(chunks)} chunks from report")
             
+            # Validate chunks
+            if not chunks or len(chunks) == 0:
+                print(f"⚠️ No valid chunks created for {company_name}, skipping storage")
+                return None
+            
             # Generate embeddings for chunks
-            embeddings = self.embedding_model.encode(chunks)
+            try:
+                embeddings = self.embedding_model.encode(chunks)
+                if embeddings.size == 0:
+                    print(f"⚠️ Empty embeddings generated for {company_name}, skipping storage")
+                    return None
+            except Exception as e:
+                print(f"❌ Error generating embeddings for {company_name}: {e}")
+                return None
             
             # Prepare metadata for each chunk
             chunk_metadatas = []
@@ -102,22 +183,35 @@ class RAGSystem:
                     "timestamp": datetime.now().isoformat(),
                     **report_metadata
                 }
+                # Clean metadata for ChromaDB compatibility
+                chunk_metadata = self._clean_metadata_for_chromadb(chunk_metadata)
                 chunk_metadatas.append(chunk_metadata)
             
+            # Debug: Print metadata structure
+            if chunk_metadatas:
+                print(f"🔍 Metadata sample: {list(chunk_metadatas[0].keys())}")
+                for key, value in chunk_metadatas[0].items():
+                    print(f"   {key}: {type(value).__name__} = {value}")
+            
             # Store in vector database
-            self.reports_collection.add(
-                embeddings=embeddings.tolist(),
-                documents=chunks,
-                metadatas=chunk_metadatas,
-                ids=[f"{report_id}_chunk_{i}" for i in range(len(chunks))]
-            )
-            
-            # Update current session
-            self.current_company = company_name
-            self.current_report_id = report_id
-            
-            print(f"✅ Successfully stored report with {len(chunks)} chunks")
-            return report_id
+            try:
+                self.reports_collection.add(
+                    embeddings=embeddings.tolist(),
+                    documents=chunks,
+                    metadatas=chunk_metadatas,
+                    ids=[f"{report_id}_chunk_{i}" for i in range(len(chunks))]
+                )
+                
+                # Update current session
+                self.current_company = company_name
+                self.current_report_id = report_id
+                
+                print(f"✅ Successfully stored report with {len(chunks)} chunks")
+                return report_id
+                
+            except Exception as e:
+                print(f"❌ Error storing in vector database: {e}")
+                return None
             
         except Exception as e:
             print(f"❌ Error storing report: {e}")
@@ -143,6 +237,8 @@ class RAGSystem:
     def search_reports(self, query: str, company_name: Optional[str] = None) -> List[Dict[str, Any]]:
         """Search for relevant content in stored reports"""
         try:
+            print(f"🔍 Searching for: '{query}' in company: {company_name}")
+            
             # Generate query embedding
             query_embedding = self.embedding_model.encode([query])
             
@@ -151,12 +247,16 @@ class RAGSystem:
             if company_name:
                 where_clause["company_name"] = company_name
             
+            print(f"🔍 Search parameters: where_clause={where_clause}")
+            
             # Search in vector database
             results = self.reports_collection.query(
                 query_embeddings=query_embedding.tolist(),
                 n_results=self.max_results,
                 where=where_clause if where_clause else None
             )
+            
+            print(f"🔍 Raw search results: {len(results.get('documents', [[]])[0]) if results.get('documents') else 0} documents")
             
             # Format results
             formatted_results = []
@@ -184,9 +284,11 @@ class RAGSystem:
         """Answer user question using RAG with intelligent fallback"""
         try:
             print(f"🤔 Processing question: '{question}'")
+            print(f"📊 Current company: {self.current_company}")
             
             # Step 1: Search in stored reports
             relevant_chunks = self.search_reports(question, self.current_company)
+            print(f"🔍 Found {len(relevant_chunks)} relevant chunks")
             
             # Use a more reasonable similarity threshold
             similarity_threshold = 0.3  # Lower threshold for better recall
@@ -203,6 +305,7 @@ class RAGSystem:
             
             else:
                 # No relevant data found
+                print("❌ No relevant data found")
                 return {
                     'answer': "I don't have enough information to answer this question accurately. Please ensure a company report has been generated first.",
                     'source': 'no_data',

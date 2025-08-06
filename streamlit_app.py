@@ -469,7 +469,7 @@ class IntelliVestStreamlitApp:
                 
         except Exception as e:
             st.error(f"❌ Error storing analysis in RAG system: {e}")
-    
+            
     def render_header(self):
         """Render the main header"""
         st.markdown("""
@@ -499,7 +499,7 @@ class IntelliVestStreamlitApp:
             max_value=20,
             value=10,
             help="Number of concurrent workers for parallel processing"
-        )
+            )
             
             # Advanced options
         st.sidebar.markdown("### 🔧 Advanced Options")
@@ -675,8 +675,87 @@ class IntelliVestStreamlitApp:
             
             # Add report download section
             self.render_report_download_section(result)
+            
+            # 🆕 IMMEDIATE RAG APPLICATION AND Q&A SUGGESTION
+            self.render_immediate_rag_suggestion(result)
         elif result.status == "error":
             st.info("Analysis completed with errors. Please check the error message above.")
+    
+    def render_immediate_rag_suggestion(self, result):
+        """Render immediate RAG application and Q&A suggestion after analysis"""
+        if not result or result.status != "success":
+            return
+        
+        st.markdown("---")
+        st.markdown("## 🤖 AI-Powered Q&A System")
+        
+        # Check if RAG system is available
+        if not self.rag_system:
+            st.warning("⚠️ Q&A system is not available. Please check the system status.")
+            return
+        
+        # Check if analysis was stored in RAG
+        company_name = result.request.company_name
+        
+        # Create a success message with Q&A suggestion
+        st.success(f"""
+        ✅ **Analysis Successfully Stored in Q&A System!**
+        
+        Your comprehensive analysis for **{company_name}** has been processed and is now available for interactive questioning.
+        
+        🎯 **What you can do now:**
+        - Ask specific questions about {company_name}'s financial performance
+        - Get detailed insights about risks and opportunities
+        - Understand the investment thesis better
+        - Explore competitive advantages and market position
+        
+        💡 **Navigate to the "Q&A" tab** to start asking questions about {company_name}!
+        """)
+        
+        # Add a direct link to Q&A tab
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 1.5rem; border-radius: 10px; color: white; margin: 1rem 0;">
+            <h3>🚀 Ready to Explore Your Analysis?</h3>
+            <p style="margin: 0.5rem 0;">Click the <strong>"Q&A"</strong> tab above to start asking questions about your analysis!</p>
+            <p style="margin: 0.5rem 0; font-size: 0.9rem; opacity: 0.9;">
+                💡 Try questions like: "What are the main risks?", "What's the growth outlook?", "How does it compare to competitors?"
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Show some suggested questions
+        if self.rag_system.current_company == company_name:
+            suggested_questions = self.rag_system.get_suggested_questions()
+            if suggested_questions:
+                st.markdown("### 💡 Suggested Questions to Ask:")
+                for i, question in enumerate(suggested_questions[:4]):
+                    st.markdown(f"• **{question}**")
+        
+        # Add a quick Q&A preview
+        st.markdown("### 🎯 Quick Q&A Preview")
+        st.markdown("""
+        Your analysis is now ready for interactive questioning. The AI system can answer questions about:
+        """)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+            📊 **Financial Analysis**
+            • Key metrics and ratios
+            • Revenue and growth trends
+            • Profitability analysis
+            • Cash flow patterns
+            """)
+        
+        with col2:
+            st.markdown("""
+            🎯 **Investment Insights**
+            • Risk assessment
+            • Competitive advantages
+            • Market position
+            • Growth opportunities
+            """)
     
     def render_report_download_section(self, result):
         """Render the report download section"""
@@ -742,7 +821,7 @@ class IntelliVestStreamlitApp:
                 )
                 
                 st.success("✅ PDF report generated successfully!")
-                
+                    
         except Exception as e:
             st.error(f"❌ Error generating PDF report: {e}")
     
@@ -949,10 +1028,10 @@ class IntelliVestStreamlitApp:
                     story.append(models_table)
                     story.append(Spacer(1, 15))
             
-            else:
-                story.append(Paragraph("📝 ANALYSIS CONTENT", subheading_style))
-                story.extend(self._process_content_paragraphs(str(content), normal_style, bullet_style))
-                story.append(Spacer(1, 15))
+                else:
+                    story.append(Paragraph("📝 ANALYSIS CONTENT", subheading_style))
+                    story.extend(self._process_content_paragraphs(str(content), normal_style, bullet_style))
+                    story.append(Spacer(1, 15))
             
             # Report metadata with enhanced formatting
             story.append(Paragraph("📊 REPORT METADATA", heading_style))
@@ -1063,7 +1142,7 @@ class IntelliVestStreamlitApp:
             if para.startswith('•') or para.startswith('-') or para.startswith('*'):
                 story_elements.append(Paragraph(para, bullet_style))
                 story_elements.append(Spacer(1, 4))
-            else:
+        else:
                 # Handle bold text within paragraphs
                 formatted_para = self._format_bold_text(para)
                 story_elements.append(Paragraph(formatted_para, normal_style))
@@ -1414,12 +1493,18 @@ Generated by IntelliVest AI Custom Report Generator
     def _llm_callback(self, prompt: str) -> str:
         """LLM callback for RAG system"""
         try:
-            if self.system and hasattr(self.system, 'llm_fallback'):
-                return self.system.llm_fallback(prompt)
+            if self.system and hasattr(self.system, 'fallback_system'):
+                # Use the fallback system for LLM calls
+                response = self.system.fallback_system.generate_response(prompt)
+                if response:
+                    return response
+                else:
+                    return "I couldn't generate a response. Please try again."
             else:
-                return "LLM system not available"
+                return "LLM system not available. Please check the system status."
         except Exception as e:
-            return f"Error: {str(e)}"
+            print(f"❌ LLM callback error: {e}")
+            return f"Error generating response: {str(e)}"
     
     def _web_search_callback(self, query: str) -> List[Dict[str, Any]]:
         """Web search callback for RAG system"""
@@ -1516,7 +1601,7 @@ Generated by IntelliVest AI Custom Report Generator
                     if "sentiment" in content:
                         st.markdown("#### 🧠 Sentiment Agent")
                         st.markdown(content["sentiment"])
-                
+                    
                 with col2:
                     if "valuation" in content:
                         st.markdown("#### 💰 Valuation Agent")
@@ -1837,7 +1922,7 @@ Generated by IntelliVest AI Custom Report Generator
                             'tickfont': {'color': '#ffffff'}
                         }
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("⚠️ No sectors discovered. This might be due to:")
             st.markdown("""
@@ -1860,7 +1945,7 @@ Generated by IntelliVest AI Custom Report Generator
                 sentiment = market_insights.get('market_sentiment', 'neutral')
                 sentiment_emoji = {"bullish": "📈", "bearish": "📉", "neutral": "➡️"}.get(sentiment, "➡️")
                 st.metric("Market Sentiment", f"{sentiment_emoji} {sentiment.title()}")
-            
+                
             with col2:
                 risk_level = market_insights.get('risk_level', 'medium')
                 risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(risk_level, "🟡")
@@ -1966,7 +2051,7 @@ Generated by IntelliVest AI Custom Report Generator
                 st.markdown("### 📋 Detailed Analysis View")
                 
                 # Create tabs for different viewing options
-                tab1, tab2 = st.tabs(["🎯 View by Analysis", "🏢 View by Company"])
+                tab1, tab2, tab3 = st.tabs(["🎯 View by Analysis", "🏢 View by Company", "🤖 Q&A System"])
                 
                 with tab1:
                     # Select analysis to view
@@ -2044,6 +2129,10 @@ Generated by IntelliVest AI Custom Report Generator
                         else:
                             st.info(f"📝 No analyses found for '{company_search}'")
                 
+                with tab3:
+                    # Combined Q&A System
+                    self.render_combined_qa_section()
+                
                 # Add some statistics
                 st.markdown("### 📈 History Statistics")
                 col1, col2, col3, col4 = st.columns(4)
@@ -2051,7 +2140,7 @@ Generated by IntelliVest AI Custom Report Generator
                 with col1:
                     successful = len([h for h in history if h['status'] == 'success'])
                     st.metric("Successful", successful)
-                    
+                
                 with col2:
                     avg_time = sum(h['execution_time'] for h in history) / len(history) if history else 0
                     st.metric("Avg Time", f"{avg_time:.1f}s")
@@ -2084,7 +2173,7 @@ Generated by IntelliVest AI Custom Report Generator
         with col1:
             st.info(f"**Company:** {analysis['company_name']}")
             st.info(f"**Type:** {analysis['analysis_type'].title()}")
-                
+                        
         with col2:
             st.info(f"**Status:** {analysis['status'].title()}")
             st.info(f"**Execution Time:** {analysis['execution_time']:.2f}s")
@@ -2139,12 +2228,6 @@ Generated by IntelliVest AI Custom Report Generator
                 elif "content" in content:
                     # Single analysis type
                     st.markdown(content["content"])
-                else:
-                    # Display all content sections
-                    for key, value in content.items():
-                        if isinstance(value, str) and value.strip():
-                            with st.expander(f"📋 {key.title()}"):
-                                st.markdown(value)
             else:
                 # If content is a string
                 st.markdown(str(content))
@@ -2366,7 +2449,329 @@ Generated by IntelliVest AI Custom Report Generator
                 st.info("Please try refreshing the market data or check your internet connection.")
         else:
             st.warning("⚠️ System not available for market data")
-
+    
+    def render_combined_qa_section(self):
+        """Render combined Q&A section with company loading and question answering"""
+        st.markdown("### 🤖 Q&A System for Historical Analyses")
+        st.markdown("Load a company from your analysis history and ask questions about it.")
+        
+        if not self.rag_system:
+            st.warning("⚠️ Q&A system is not available. Please check the system status.")
+            return
+        
+        # Create two columns for the interface
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("#### 🏢 Step 1: Load Company")
+            
+            # Get available companies from history
+            try:
+                history = self.system.get_analysis_history(limit=1000)
+                if not history:
+                    st.info("📝 No analysis history available. Run your first analysis to use this feature.")
+                    return
+                
+                # Get unique companies
+                companies = list(set([h['company_name'] for h in history]))
+                companies.sort()
+                
+                # Company selection
+                selected_company = st.selectbox(
+                    "Select a company to ask questions about:",
+                    companies,
+                    help="Choose a company from your analysis history"
+                )
+                
+                if selected_company:
+                    # Get analyses for this company using the correct method
+                    company_analyses = self.system.get_analysis_by_company(selected_company)
+                    
+                    if not company_analyses:
+                        st.warning(f"⚠️ No analyses found for {selected_company}")
+                        return
+                    
+                    st.success(f"📊 Found {len(company_analyses)} analyses for {selected_company}")
+                    
+                    # Show analysis summary
+                    with st.expander(f"📋 Analysis Summary for {selected_company}"):
+                        for analysis in company_analyses:
+                            st.markdown(f"""
+                            **{analysis['analysis_type'].title()} Analysis** - {analysis['timestamp'][:10]}
+                            - Status: {analysis['status']}
+                            - Confidence: {analysis['confidence_score']:.2f}
+                            - Execution Time: {analysis['execution_time']:.2f}s
+                            """)
+                    
+                    # Load company data into RAG system
+                    if st.button(f"🤖 Load {selected_company} into Q&A System", type="primary"):
+                        with st.spinner(f"Loading {selected_company} data into Q&A system..."):
+                            try:
+                                success = self.load_company_into_rag(selected_company, company_analyses)
+                                
+                                if success:
+                                    st.success(f"✅ {selected_company} loaded into Q&A system!")
+                                    # Don't use st.rerun() - it causes full system reload
+                                    # Instead, use session state to track loaded company
+                                    st.session_state['loaded_company'] = selected_company
+                                    st.session_state['company_loaded'] = True
+                                    # Also ensure RAG system current_company is set
+                                    if self.rag_system:
+                                        self.rag_system.current_company = selected_company
+                                    st.info("💡 **Tip:** Switch to the right column to ask questions!")
+                                else:
+                                    st.error(f"❌ Failed to load {selected_company} into Q&A system.")
+                                    st.info("💡 Try running a new analysis for this company.")
+                            
+                            except Exception as e:
+                                st.error(f"❌ Error loading {selected_company} into Q&A system: {str(e)}")
+                                st.info("💡 This might be due to empty analysis content or system issues.")
+                
+            except Exception as e:
+                st.error(f"❌ Error loading historical data: {e}")
+                st.info("💡 Please try refreshing the page or check if the system is properly initialized.")
+        
+        with col2:
+            st.markdown("#### 🤔 Step 2: Ask Questions")
+            
+            # Check if a company is loaded using session state
+            company_loaded = st.session_state.get('company_loaded', False)
+            loaded_company = st.session_state.get('loaded_company', None)
+            
+            if not company_loaded or not loaded_company:
+                st.info("📝 No company loaded. Please load a company first.")
+                return
+            
+            # Verify RAG system has data for this company
+            if self.rag_system and self.rag_system.current_company != loaded_company:
+                st.warning(f"⚠️ RAG system mismatch. Expected: {loaded_company}, Got: {self.rag_system.current_company}")
+                st.info("💡 Please reload the company.")
+                return
+            
+            # Show current company
+            st.success(f"📊 Currently loaded: **{loaded_company}**")
+            
+            # Question input with session state support
+            default_question = st.session_state.get('question_input', '')
+            question = st.text_input(
+                "Ask a question:",
+                value=default_question,
+                placeholder="e.g., What are the main risks? What's the growth outlook?",
+                help="Ask any question about the loaded company"
+            )
+            
+            # Clear the session state after using it
+            if 'question_input' in st.session_state:
+                del st.session_state['question_input']
+            
+            # Suggested questions - display as text only to prevent reloading
+            suggested_questions = self.rag_system.get_suggested_questions()
+            if suggested_questions:
+                st.markdown("### 💡 Suggested Questions:")
+                st.info("💡 **Tip:** Copy and paste any of these questions into the input field above:")
+                
+                # Display as simple text with copy-friendly format
+                for i, suggested_q in enumerate(suggested_questions[:4]):
+                    st.markdown(f"**{i+1}.** {suggested_q}")
+                
+                st.markdown("---")
+            
+            # Ask question button
+            if st.button("🚀 Ask Question", type="primary", disabled=not question.strip()):
+                if question.strip():
+                    with st.spinner("🤔 Thinking..."):
+                        try:
+                            st.info(f"🔍 Debug: Asking question about {loaded_company}")
+                            st.info(f"🔍 Debug: Question: {question}")
+                            
+                            # Get answer from RAG system
+                            answer_result = self.rag_system.answer_question(
+                                question, 
+                                self._llm_callback, 
+                                self._web_search_callback
+                            )
+                            
+                            st.info(f"🔍 Debug: Answer result received: {answer_result.get('source', 'unknown')}")
+                            
+                            # Display answer
+                            st.markdown("### 📝 Answer:")
+                            
+                            # Show confidence
+                            confidence_color = "🟢" if answer_result['confidence'] > 0.7 else "🟡" if answer_result['confidence'] > 0.4 else "🔴"
+                            st.info(f"{confidence_color} **Confidence:** {answer_result['confidence']:.2f}")
+                            
+                            # Show source
+                            source_emoji = {
+                                'stored_report': '📊',
+                                'web_search': '🌐',
+                                'no_data': '❌',
+                                'error': '⚠️'
+                            }.get(answer_result['source'], '📝')
+                            st.info(f"{source_emoji} **Source:** {answer_result['source'].replace('_', ' ').title()}")
+                            
+                            # Display answer
+                            st.markdown(answer_result['answer'])
+                            
+                            # Store question for history
+                            self.rag_system.store_question(question, answer_result['answer'], answer_result['confidence'])
+                            
+                            # Show chunks used if available
+                            if answer_result.get('chunks_used'):
+                                with st.expander("📄 Sources Used"):
+                                    for i, chunk in enumerate(answer_result['chunks_used'][:3]):
+                                        st.markdown(f"**Source {i+1}:**")
+                                        st.markdown(f"*{chunk['content'][:200]}...*")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Error answering question: {str(e)}")
+                            st.info("💡 This might be due to LLM system issues. Please try again.")
+                            # Add more debugging
+                            st.error(f"🔍 Debug: Full error details: {type(e).__name__}: {e}")
+            
+            # Question history
+            question_history = self.rag_system.get_question_history(loaded_company)
+            if question_history:
+                st.markdown("### 📚 Recent Questions")
+                for qa in question_history[:3]:  # Show last 3 questions
+                    with st.expander(f"Q: {qa['question'][:50]}..."):
+                        st.markdown(f"**Question:** {qa['question']}")
+                        st.markdown(f"**Answer:** {qa.get('answer', 'No answer stored')}")
+                        if qa.get('timestamp'):
+                            st.caption(f"Asked: {qa['timestamp'][:19]}")
+            
+            # Clear company data option
+            if st.button("🗑️ Clear Current Company Data", type="secondary"):
+                if loaded_company:
+                    self.rag_system.clear_company_data(loaded_company)
+                    # Clear session state
+                    st.session_state['loaded_company'] = None
+                    st.session_state['company_loaded'] = False
+                    st.success("✅ Company data cleared!")
+                    # Don't use st.rerun() - it causes full system reload
+    
+    def validate_analysis_content(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate and analyze the content structure of an analysis"""
+        content = analysis.get('content', {})
+        validation_result = {
+            'has_content': False,
+            'content_type': type(content).__name__,
+            'content_keys': [],
+            'total_chars': 0,
+            'is_valid': False,
+            'issues': []
+        }
+        
+        if isinstance(content, dict):
+            validation_result['has_content'] = True
+            validation_result['content_keys'] = list(content.keys())
+            
+            # Calculate total characters
+            total_chars = 0
+            for key, value in content.items():
+                if isinstance(value, str):
+                    total_chars += len(value)
+            
+            validation_result['total_chars'] = total_chars
+            
+            # Check for common content keys
+            expected_keys = ['full_result', 'research', 'sentiment', 'valuation', 'critique', 'original_thesis', 'final_thesis']
+            found_keys = [key for key in expected_keys if key in content]
+            
+            if found_keys:
+                validation_result['is_valid'] = True
+            else:
+                validation_result['issues'].append("No expected content keys found")
+                
+        elif isinstance(content, str):
+            validation_result['has_content'] = True
+            validation_result['total_chars'] = len(content)
+            if len(content) > 100:
+                validation_result['is_valid'] = True
+            else:
+                validation_result['issues'].append("Content too short")
+        else:
+            validation_result['issues'].append(f"Unexpected content type: {type(content).__name__}")
+        
+        return validation_result
+    
+    def load_company_into_rag(self, company_name: str, analyses: List[Dict[str, Any]]) -> bool:
+        """Load company analyses into RAG system"""
+        try:
+            if not self.rag_system:
+                return False
+            
+            # Prepare comprehensive report content from all analyses
+            report_content = ""
+            
+            for analysis in analyses:
+                analysis_type = analysis.get('analysis_type', 'unknown')
+                content = analysis.get('content', {})  # Fixed: use 'content' instead of 'full_content'
+                
+                # Add analysis type header
+                report_content += f"\n\n=== {analysis_type.upper()} ANALYSIS ===\n"
+                
+                # Add content based on structure
+                if isinstance(content, dict):
+                    if 'full_result' in content:
+                        report_content += f"FULL RESULT:\n{content['full_result']}\n\n"
+                    
+                    if 'research' in content:
+                        report_content += f"RESEARCH:\n{content['research']}\n\n"
+                    
+                    if 'sentiment' in content:
+                        report_content += f"SENTIMENT:\n{content['sentiment']}\n\n"
+                    
+                    if 'valuation' in content:
+                        report_content += f"VALUATION:\n{content['valuation']}\n\n"
+                    
+                    if 'critique' in content:
+                        report_content += f"CRITIQUE:\n{content['critique']}\n\n"
+                    
+                    if 'original_thesis' in content:
+                        report_content += f"ORIGINAL THESIS:\n{content['original_thesis']}\n\n"
+                    
+                    if 'final_thesis' in content:
+                        report_content += f"FINAL THESIS:\n{content['final_thesis']}\n\n"
+                    
+                    # Add any other content sections
+                    for key, value in content.items():
+                        if key not in ['full_result', 'research', 'sentiment', 'valuation', 'critique', 'original_thesis', 'final_thesis']:
+                            if isinstance(value, str) and value.strip():
+                                report_content += f"{key.upper()}:\n{value}\n\n"
+                else:
+                    # If content is a string
+                    report_content += f"CONTENT:\n{str(content)}\n\n"
+            
+            # Validate that we have meaningful content
+            if not report_content.strip():
+                print(f"⚠️ No meaningful content found for {company_name}")
+                return False
+            
+            print(f"📝 Prepared {len(report_content)} characters of content for {company_name}")
+            
+            # Prepare metadata
+            report_metadata = {
+                'analysis_count': len(analyses),
+                'analysis_types': ', '.join([a.get('analysis_type', 'unknown') for a in analyses]),  # Convert list to string
+                'timestamp': datetime.now().isoformat(),
+                'source': 'historical_analysis',
+                'company_name': company_name
+            }
+            
+            # Store in RAG system
+            report_id = self.rag_system.store_report(company_name, report_content, report_metadata)
+            
+            if report_id:
+                print(f"✅ Successfully loaded {company_name} with {len(analyses)} analyses into RAG system")
+                return True
+            else:
+                print(f"❌ Failed to store {company_name} in RAG system")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error loading company into RAG: {e}")
+            return False
+    
     def run(self):
         """Main application runner"""
         # Render header
@@ -2376,7 +2781,7 @@ Generated by IntelliVest AI Custom Report Generator
         config = self.render_sidebar()
         
         # Main content area
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["🚀 Analysis", "📈 Markets", "📚 History", "🔧 Status", "🤔 Q&A", "ℹ️ About"])
+        tab1, tab2, tab3, tab4 = st.tabs(["🚀 Analysis", "📈 Markets", "📚 History", "🔧 Status"])
         
         with tab1:
             # Render market discovery content at the top of analysis tab
@@ -2448,15 +2853,9 @@ Generated by IntelliVest AI Custom Report Generator
         
         with tab4:
             self.render_system_status()
-        
-        with tab5:
-            # Render Q&A interface
-            if self.rag_system:
-                render_qa_tab(self.rag_system, self._llm_callback, self._web_search_callback)
-            else:
-                st.warning("⚠️ Q&A system is not available. Please check the system status.")
-        
-        with tab6:
+            
+            # Add About section
+            st.markdown("---")
             self.render_about()
     
     def render_about(self):
