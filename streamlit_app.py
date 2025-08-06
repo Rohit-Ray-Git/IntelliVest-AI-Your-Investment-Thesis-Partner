@@ -399,36 +399,63 @@ class IntelliVestStreamlitApp:
         
         try:
             # Extract company name from result
-            company_name = result.get('company_name', 'Unknown Company')
+            company_name = result.request.company_name
             
             # Prepare report content
             report_content = ""
             
-            # Add summary
-            if 'summary' in result:
-                report_content += f"SUMMARY:\n{result['summary']}\n\n"
+            # Get the content
+            content = result.content
             
-            # Add detailed analysis
-            if 'detailed_analysis' in result:
-                report_content += f"DETAILED ANALYSIS:\n{result['detailed_analysis']}\n\n"
-            
-            # Add investment thesis
-            if 'investment_thesis' in result:
-                report_content += f"INVESTMENT THESIS:\n{result['investment_thesis']}\n\n"
-            
-            # Add insights
-            if 'insights' in result:
-                report_content += f"KEY INSIGHTS:\n{result['insights']}\n\n"
-            
-            # Add metrics
-            if 'metrics' in result:
-                report_content += f"FINANCIAL METRICS:\n{result['metrics']}\n\n"
+            # Add content based on its structure
+            if isinstance(content, dict):
+                # Add summary
+                if 'summary' in content:
+                    report_content += f"SUMMARY:\n{content['summary']}\n\n"
+                
+                # Add detailed analysis
+                if 'detailed_analysis' in content:
+                    report_content += f"DETAILED ANALYSIS:\n{content['detailed_analysis']}\n\n"
+                
+                # Add investment thesis
+                if 'investment_thesis' in content:
+                    report_content += f"INVESTMENT THESIS:\n{content['investment_thesis']}\n\n"
+                
+                # Add insights
+                if 'insights' in content:
+                    report_content += f"KEY INSIGHTS:\n{content['insights']}\n\n"
+                
+                # Add metrics
+                if 'metrics' in content:
+                    report_content += f"FINANCIAL METRICS:\n{content['metrics']}\n\n"
+                
+                # Add full result if available
+                if 'full_result' in content:
+                    report_content += f"FULL ANALYSIS:\n{content['full_result']}\n\n"
+                
+                # Add individual components
+                if 'research' in content:
+                    report_content += f"RESEARCH ANALYSIS:\n{content['research']}\n\n"
+                
+                if 'sentiment' in content:
+                    report_content += f"SENTIMENT ANALYSIS:\n{content['sentiment']}\n\n"
+                
+                if 'valuation' in content:
+                    report_content += f"VALUATION ANALYSIS:\n{content['valuation']}\n\n"
+                
+                if 'critique' in content:
+                    report_content += f"CRITIQUE:\n{content['critique']}\n\n"
+            else:
+                # If content is a string, use it directly
+                report_content += f"ANALYSIS CONTENT:\n{content}\n\n"
             
             # Prepare metadata
             report_metadata = {
-                'analysis_type': result.get('analysis_type', 'full'),
-                'timestamp': result.get('timestamp', datetime.now().isoformat()),
-                'analysis_id': result.get('analysis_id', ''),
+                'analysis_type': result.request.analysis_type,
+                'timestamp': datetime.now().isoformat(),
+                'execution_time': result.execution_time,
+                'confidence_score': result.confidence_score,
+                'status': result.status,
                 'source': 'intellivest_ai'
             }
             

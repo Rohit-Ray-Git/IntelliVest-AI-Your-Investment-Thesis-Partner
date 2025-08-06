@@ -19,6 +19,8 @@ def render_qa_interface(rag_system, llm_callback, web_search_callback=None):
         st.session_state.qa_history = []
     if 'current_question' not in st.session_state:
         st.session_state.current_question = ""
+    if 'question_asked' not in st.session_state:
+        st.session_state.question_asked = False
     
     # Header
     st.markdown("""
@@ -71,6 +73,7 @@ def render_qa_interface(rag_system, llm_callback, web_search_callback=None):
             for i, question in enumerate(suggested_questions[:4]):
                 if st.button(f"❓ {question}", key=f"suggest_{i}", use_container_width=True):
                     st.session_state.current_question = question
+                    st.session_state.question_asked = True
         
         # Question input field
         question = st.text_area(
@@ -86,19 +89,27 @@ def render_qa_interface(rag_system, llm_callback, web_search_callback=None):
         with col_ask2:
             ask_button = st.button("🚀 Ask Question", use_container_width=True, type="primary")
         
-        # Process question
+        # Process question (either from button click or manual input)
+        question_to_process = None
+        
         if ask_button and question.strip():
+            question_to_process = question.strip()
+        elif st.session_state.question_asked and st.session_state.current_question:
+            question_to_process = st.session_state.current_question
+            # Don't reset the flag immediately to allow the question to be processed
+        
+        if question_to_process:
             with st.spinner("🤔 Analyzing your question..."):
                 # Get answer from RAG system
                 answer_data = rag_system.answer_question(
-                    question.strip(), 
+                    question_to_process, 
                     llm_callback, 
                     web_search_callback
                 )
                 
                 # Store question in history
                 st.session_state.qa_history.append({
-                    'question': question.strip(),
+                    'question': question_to_process,
                     'answer': answer_data['answer'],
                     'confidence': answer_data['confidence'],
                     'source': answer_data['source'],
@@ -108,14 +119,17 @@ def render_qa_interface(rag_system, llm_callback, web_search_callback=None):
                 
                 # Store in RAG system
                 rag_system.store_question(
-                    question.strip(),
+                    question_to_process,
                     answer_data['answer'],
                     answer_data['confidence']
                 )
                 
-                # Clear current question
+                # Clear current question and reset flag
                 st.session_state.current_question = ""
-                st.rerun()
+                st.session_state.question_asked = False
+                
+                # Show success message
+                st.success(f"✅ Question answered successfully! Confidence: {answer_data['confidence']:.1%}")
     
     with col2:
         # Quick stats

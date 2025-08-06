@@ -188,8 +188,11 @@ class RAGSystem:
             # Step 1: Search in stored reports
             relevant_chunks = self.search_reports(question, self.current_company)
             
-            if relevant_chunks and any(chunk['similarity_score'] > 0.7 for chunk in relevant_chunks):
-                # High confidence match found in reports
+            # Use a more reasonable similarity threshold
+            similarity_threshold = 0.3  # Lower threshold for better recall
+            
+            if relevant_chunks and any(chunk['similarity_score'] > similarity_threshold for chunk in relevant_chunks):
+                # Good match found in reports
                 print("📊 Using stored report data for answer")
                 return self._generate_answer_from_reports(question, relevant_chunks, llm_callback)
             
