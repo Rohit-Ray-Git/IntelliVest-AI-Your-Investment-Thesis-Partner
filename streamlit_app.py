@@ -78,18 +78,25 @@ import streamlit as st
 import asyncio
 import time
 import json
-from datetime import datetime
-from typing import Dict, Any, List
+import os
+import sys
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
+from dotenv import load_dotenv
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Import our systems
-from production_integration import ProductionIntelliVestAI, AnalysisRequest
+# Add the project root to Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Import our core systems
+from production_integration import ProductionIntelliVestAI, AnalysisRequest, AnalysisResult
+from tools.rag_system import RAGSystem
+from llm.advanced_fallback_system import TaskType
 from financial_facts import get_random_fact
 
 # Import RAG system
-from tools.rag_system import RAGSystem
 from components.qa_interface import render_qa_tab
 
 # Import reportlab for PDF generation
@@ -395,11 +402,13 @@ class IntelliVestStreamlitApp:
     def store_analysis_in_rag(self, result):
         """Store analysis results in RAG system for Q&A"""
         if not self.rag_system or not result:
-            return
+            print("⚠️ RAG system or result not available")
+            return False
         
         try:
             # Extract company name from result
             company_name = result.request.company_name
+            print(f"📝 Storing analysis for {company_name} in RAG system...")
             
             # Prepare report content
             report_content = ""
@@ -445,9 +454,22 @@ class IntelliVestStreamlitApp:
                 
                 if 'critique' in content:
                     report_content += f"CRITIQUE:\n{content['critique']}\n\n"
+                
+                # Add any other content sections
+                for key, value in content.items():
+                    if key not in ['summary', 'detailed_analysis', 'investment_thesis', 'insights', 'metrics', 'full_result', 'research', 'sentiment', 'valuation', 'critique']:
+                        if isinstance(value, str) and value.strip():
+                            report_content += f"{key.upper()}:\n{value}\n\n"
             else:
                 # If content is a string, use it directly
                 report_content += f"ANALYSIS CONTENT:\n{content}\n\n"
+            
+            # Validate that we have meaningful content
+            if not report_content.strip():
+                print(f"⚠️ No meaningful content found for {company_name}")
+                return False
+            
+            print(f"📝 Prepared {len(report_content)} characters of content for {company_name}")
             
             # Prepare metadata
             report_metadata = {
@@ -456,20 +478,26 @@ class IntelliVestStreamlitApp:
                 'execution_time': result.execution_time,
                 'confidence_score': result.confidence_score,
                 'status': result.status,
-                'source': 'intellivest_ai'
+                'source': 'intellivest_ai',
+                'company_name': company_name
             }
             
             # Store in RAG system
             report_id = self.rag_system.store_report(company_name, report_content, report_metadata)
             
             if report_id:
-                st.success(f"✅ Analysis stored in Q&A system for {company_name}")
+                print(f"✅ Successfully stored {company_name} in RAG system with ID: {report_id}")
+                # Set current company in RAG system
+                self.rag_system.current_company = company_name
+                return True
             else:
-                st.warning("⚠️ Failed to store analysis in Q&A system")
+                print(f"❌ Failed to store {company_name} in RAG system")
+                return False
                 
         except Exception as e:
-            st.error(f"❌ Error storing analysis in RAG system: {e}")
-            
+            print(f"❌ Error storing analysis in RAG system: {e}")
+            return False
+    
     def render_header(self):
         """Render the main header"""
         st.markdown("""
@@ -654,6 +682,13 @@ class IntelliVestStreamlitApp:
         if not result:
             return
         
+        # Get company name
+        company_name = result.request.company_name if hasattr(result.request, 'company_name') else "Unknown Company"
+        
+        # Display company name prominently at the top
+        st.markdown(f"## **{company_name}**")
+        st.markdown("---")
+        
         st.markdown("## 📊 Analysis Results")
         
         # Status and metrics
@@ -697,64 +732,82 @@ class IntelliVestStreamlitApp:
         # Check if analysis was stored in RAG
         company_name = result.request.company_name
         
-        # Create a success message with Q&A suggestion
-        st.success(f"""
-        ✅ **Analysis Successfully Stored in Q&A System!**
+        # Try to store the analysis in RAG if not already done
+        rag_stored = False
+        if self.rag_system.current_company != company_name:
+            with st.spinner("🤖 Storing analysis in Q&A system..."):
+                rag_stored = self.store_analysis_in_rag(result)
+        else:
+            rag_stored = True
         
-        Your comprehensive analysis for **{company_name}** has been processed and is now available for interactive questioning.
-        
-        🎯 **What you can do now:**
-        - Ask specific questions about {company_name}'s financial performance
-        - Get detailed insights about risks and opportunities
-        - Understand the investment thesis better
-        - Explore competitive advantages and market position
-        
-        💡 **Navigate to the "Q&A" tab** to start asking questions about {company_name}!
-        """)
-        
-        # Add a direct link to Q&A tab
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    padding: 1.5rem; border-radius: 10px; color: white; margin: 1rem 0;">
-            <h3>🚀 Ready to Explore Your Analysis?</h3>
-            <p style="margin: 0.5rem 0;">Click the <strong>"Q&A"</strong> tab above to start asking questions about your analysis!</p>
-            <p style="margin: 0.5rem 0; font-size: 0.9rem; opacity: 0.9;">
-                💡 Try questions like: "What are the main risks?", "What's the growth outlook?", "How does it compare to competitors?"
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Show some suggested questions
-        if self.rag_system.current_company == company_name:
-            suggested_questions = self.rag_system.get_suggested_questions()
-            if suggested_questions:
-                st.markdown("### 💡 Suggested Questions to Ask:")
-                for i, question in enumerate(suggested_questions[:4]):
-                    st.markdown(f"• **{question}**")
-        
-        # Add a quick Q&A preview
-        st.markdown("### 🎯 Quick Q&A Preview")
-        st.markdown("""
-        Your analysis is now ready for interactive questioning. The AI system can answer questions about:
-        """)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("""
-            📊 **Financial Analysis**
-            • Key metrics and ratios
-            • Revenue and growth trends
-            • Profitability analysis
-            • Cash flow patterns
+        if rag_stored:
+            # Create a success message with Q&A suggestion
+            st.success(f"""
+            ✅ **Analysis Successfully Stored in Q&A System!**
+            
+            Your comprehensive analysis for **{company_name}** has been processed and is now available for interactive questioning.
+            
+            🎯 **What you can do now:**
+            - Ask specific questions about {company_name}'s financial performance
+            - Get detailed insights about risks and opportunities
+            - Understand the investment thesis better
+            - Explore competitive advantages and market position
+            
+            💡 **Navigate to the "Q&A" tab** to start asking questions about {company_name}!
             """)
-        
-        with col2:
+            
+            # Add a direct link to Q&A tab with better styling
             st.markdown("""
-            🎯 **Investment Insights**
-            • Risk assessment
-            • Competitive advantages
-            • Market position
-            • Growth opportunities
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        padding: 1.5rem; border-radius: 10px; color: white; margin: 1rem 0;">
+                <h3>🚀 Ready to Explore Your Analysis?</h3>
+                <p style="margin: 0.5rem 0;">Click the <strong>"Q&A"</strong> tab above to start asking questions about your analysis!</p>
+                <p style="margin: 0.5rem 0; font-size: 0.9rem; opacity: 0.9;">
+                    💡 Try questions like: "What are the main risks?", "What's the growth outlook?", "How does it compare to competitors?"
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Show some suggested questions
+            if self.rag_system.current_company == company_name:
+                suggested_questions = self.rag_system.get_suggested_questions()
+                if suggested_questions:
+                    st.markdown("### 💡 Suggested Questions to Ask:")
+                    for i, question in enumerate(suggested_questions[:4]):
+                        st.markdown(f"• **{question}**")
+            
+            # Add a quick Q&A preview
+            st.markdown("### 🎯 Quick Q&A Preview")
+            st.markdown("""
+            Your analysis is now ready for interactive questioning. The AI system can answer questions about:
+            """)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("""
+                📊 **Financial Analysis**
+                • Key metrics and ratios
+                • Revenue and growth trends
+                • Profitability analysis
+                • Cash flow patterns
+                """)
+            
+            with col2:
+                st.markdown("""
+                🎯 **Investment Insights**
+                • Risk assessment
+                • Competitive advantages
+                • Market position
+                • Growth opportunities
+                """)
+        else:
+            st.warning(f"""
+            ⚠️ **Analysis could not be stored in Q&A system**
+            
+            The analysis for {company_name} was completed successfully, but there was an issue storing it in the Q&A system.
+            You can still view the analysis results above, but interactive Q&A features may not be available.
+            
+            💡 **Try refreshing the page or running the analysis again.**
             """)
     
     def render_report_download_section(self, result):
@@ -1494,10 +1547,27 @@ Generated by IntelliVest AI Custom Report Generator
         """LLM callback for RAG system"""
         try:
             if self.system and hasattr(self.system, 'fallback_system'):
-                # Use the fallback system for LLM calls
-                response = self.system.fallback_system.generate_response(prompt)
-                if response:
-                    return response
+                # Use the fallback system for LLM calls - same as main analysis
+                import asyncio
+                
+                # Create a new event loop if one doesn't exist
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Run the async method using the same system as main analysis
+                result = loop.run_until_complete(
+                    self.system.fallback_system.execute_with_fallback(
+                        prompt, 
+                        task_type=TaskType.GENERAL,  # Use general task type for Q&A
+                        max_fallbacks=3
+                    )
+                )
+                
+                if result and hasattr(result, 'content'):
+                    return result.content
                 else:
                     return "I couldn't generate a response. Please try again."
             else:
@@ -1517,118 +1587,89 @@ Generated by IntelliVest AI Custom Report Generator
             return []
     
     def render_summary_tab(self, content):
-        """Render summary tab"""
+        """Render summary tab - showing only the final report"""
         st.markdown("### 📋 Analysis Summary")
         
         if isinstance(content, dict):
-            # Display key information
-            if "company_name" in content:
-                st.info(f"**Company Analyzed:** {content['company_name']}")
+            # Get company name
+            company_name = content.get("company_name", "Unknown Company")
             
-            if "analysis_type" in content:
-                st.info(f"**Analysis Type:** {content['analysis_type'].title()}")
+            # Display company name in bold at the top
+            st.markdown(f"## **{company_name}**")
+            st.markdown("---")
             
             # Display main content based on analysis type
             if "full_result" in content:
                 # Full analysis from CrewAI - this contains the final rewritten thesis after critique
-                st.markdown("### 🎯 Final Investment Thesis (After Critique & Rewrite)")
-                st.markdown("**This is the final, improved investment thesis that incorporates all critic recommendations:**")
+                st.markdown("### 🎯 Final Investment Thesis")
+                st.markdown("**Complete analysis report after critique and rewrite:**")
                 st.markdown(content["full_result"])
                 
-                # Show the workflow steps
-                st.markdown("---")
-                st.markdown("### 🔄 Analysis Workflow")
+            elif "final_thesis" in content:
+                # Alternative field name for final thesis
+                st.markdown("### 🎯 Final Investment Thesis")
+                st.markdown("**Complete analysis report:**")
+                st.markdown(content["final_thesis"])
                 
-                # Original thesis
-                if "original_thesis" in content:
-                    with st.expander("📝 Original Thesis (Before Critique)"):
-                        st.markdown(content["original_thesis"])
+            elif "thesis" in content:
+                # Fallback to thesis field
+                st.markdown("### 🎯 Investment Thesis")
+                st.markdown("**Complete analysis report:**")
+                st.markdown(content["thesis"])
                 
-                # Critic's recommendations
-                if "critique" in content:
-                    with st.expander("🔍 Critic's Recommendations"):
-                        st.markdown(content["critique"])
+            else:
+                # If no final thesis found, show the entire content
+                st.markdown("### 📊 Complete Analysis Report")
+                for key, value in content.items():
+                    if isinstance(value, str) and value.strip():
+                        if key not in ['company_name', 'analysis_type']:
+                            st.markdown(f"**{key.replace('_', ' ').title()}:**")
+                            st.markdown(value)
+                            st.markdown("---")
                 
-                # Individual agent results
-                if "research" in content:
-                    with st.expander("🔍 Research Analysis"):
-                        st.markdown(content["research"])
-                
-                if "sentiment" in content:
-                    with st.expander("🧠 Sentiment Analysis"):
-                        st.markdown(content["sentiment"])
-                
-                if "valuation" in content:
-                    with st.expander("💰 Valuation Analysis"):
-                        st.markdown(content["valuation"])
-                        
-            elif "content" in content:
-                # Single analysis type
-                st.markdown("### 📝 Analysis Content")
-                st.markdown(content["content"])
-            
-            # Display models used
-            if "models_used" in content:
-                st.markdown("### 🤖 Models Used")
-                for model in content["models_used"]:
-                    st.write(f"• {model}")
-        else:
+        elif isinstance(content, str):
             # If content is a string, display it directly
-            st.markdown("### 📝 Analysis Content")
-            st.markdown(str(content))
+            st.markdown("### 📊 Analysis Report")
+            st.markdown(content)
+            
+        else:
+            st.warning("⚠️ No analysis content available to display.")
     
     def render_details_tab(self, content):
-        """Render details tab"""
+        """Render details tab - showing only the final report details"""
         st.markdown("### 📊 Detailed Analysis")
         
         if isinstance(content, dict):
             if "full_result" in content:
-                # Full analysis from CrewAI - show the individual components instead of repeating final thesis
-                st.markdown("### 🔄 Analysis Workflow Components")
-                st.info("**Note:** The final investment thesis is shown in the Summary tab above. Here are the individual analysis components:")
+                # Show only the final result with better formatting
+                st.markdown("### 🎯 Complete Investment Analysis")
+                st.markdown("**This is the comprehensive final analysis report:**")
+                st.markdown(content["full_result"])
                 
-                # Show the analysis workflow
-                st.markdown("---")
-                st.markdown("### 🔄 Complete Analysis Workflow")
+            elif "final_thesis" in content:
+                # Alternative field name for final thesis
+                st.markdown("### 🎯 Complete Investment Analysis")
+                st.markdown("**This is the comprehensive final analysis report:**")
+                st.markdown(content["final_thesis"])
                 
-                col1, col2 = st.columns(2)
+            elif "thesis" in content:
+                # Fallback to thesis field
+                st.markdown("### 🎯 Complete Investment Analysis")
+                st.markdown("**This is the comprehensive final analysis report:**")
+                st.markdown(content["thesis"])
                 
-                with col1:
-                    if "research" in content:
-                        st.markdown("#### 🔍 Research Agent")
-                        st.markdown(content["research"])
-                    
-                    if "sentiment" in content:
-                        st.markdown("#### 🧠 Sentiment Agent")
-                        st.markdown(content["sentiment"])
-                    
-                with col2:
-                    if "valuation" in content:
-                        st.markdown("#### 💰 Valuation Agent")
-                        st.markdown(content["valuation"])
-                    
-                    if "original_thesis" in content:
-                        st.markdown("#### 📝 Original Thesis")
-                        st.markdown(content["original_thesis"])
-                
-                if "critique" in content:
-                    st.markdown("#### 🔍 Critic Agent - Recommendations")
-                    st.markdown(content["critique"])
-                
-                if "final_thesis" in content:
-                    st.markdown("#### ✅ Final Thesis (After Improvements)")
-                    st.markdown(content["final_thesis"])
-                    
             elif "content" in content:
                 # Single analysis type
+                st.markdown("### 📊 Analysis Content")
                 st.markdown(content["content"])
             else:
-                # Display all content sections
+                # Display all content sections (excluding metadata)
                 for key, value in content.items():
                     if key not in ["company_name", "analysis_type", "models_used", "fallback_count", "confidence_score", "execution_time", "cost_estimate"]:
                         if isinstance(value, str) and value.strip():
-                            st.markdown(f"#### {key.title()}")
+                            st.markdown(f"#### {key.replace('_', ' ').title()}")
                             st.markdown(value)
+                            st.markdown("---")
         else:
             st.markdown(str(content))
     
@@ -1762,7 +1803,22 @@ Generated by IntelliVest AI Custom Report Generator
     
     def render_market_discovery_section(self):
         """Render the optimized market discovery section with top 3 performers and sectors"""
-        st.markdown("## 📈 Market Highlights")
+        
+        # Professional header with gradient styling
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 2rem; 
+                    border-radius: 15px; 
+                    margin-bottom: 2rem;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+            <h1 style="color: white; text-align: center; margin: 0; font-size: 2.5rem; font-weight: 700;">
+                📈 Market Highlights
+            </h1>
+            <p style="color: white; text-align: center; margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.9;">
+                Real-time NSE market data and sectoral indices
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Load market highlights (cached)
         market_data = self.load_market_highlights()
@@ -1771,29 +1827,54 @@ Generated by IntelliVest AI Custom Report Generator
             st.error("❌ Could not load market highlights")
             return
         
-        # Show cache status and performance info
+        # Enhanced status information with better alignment
         if st.session_state.market_highlights_timestamp:
             cache_age = datetime.now() - st.session_state.market_highlights_timestamp
-            st.caption(f"📊 Data loaded: {cache_age.seconds} seconds ago | ⚡ Optimized for speed | 🚀 ~32s scan time | 📈 Real NSE indices")
-        
-        # Add refresh button with better styling
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("🔄 Refresh", help="Update market highlights with latest data", type="primary"):
-                st.session_state.market_highlights_loaded = False
-                st.session_state.market_highlights_data = None
-                st.rerun()
-        
-        with col2:
-            st.caption("💡 Click refresh to get the latest market data using our advanced scanner with real NSE sectoral indices")
+            
+            st.markdown(f"""
+            <div style="background: rgba(0,0,0,0.05); 
+                        padding: 1.5rem; 
+                        border-radius: 10px; 
+                        border-left: 5px solid #17a2b8;
+                        margin: 1rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.1rem;">📊</span>
+                        <span style="font-weight: 600; color: #495057;">Data loaded: {cache_age.seconds} seconds ago</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.1rem;">⚡</span>
+                        <span style="font-weight: 600; color: #28a745;">Optimized for speed</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.1rem;">🚀</span>
+                        <span style="font-weight: 600; color: #007bff;">~32s scan time</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.1rem;">📈</span>
+                        <span style="font-weight: 600; color: #dc3545;">Real NSE indices</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Top performing discovered stocks
         top_stocks = market_data.get('top_performing_stocks', [])
         
         if top_stocks:
-            st.markdown("### 🥇 Top 3 Discovered Performers")
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                        padding: 1.5rem; 
+                        border-radius: 12px; 
+                        margin: 2rem 0 1rem 0;
+                        box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                <h2 style="color: white; margin: 0; font-size: 1.5rem; font-weight: 600; text-align: center;">
+                    🥇 Top 3 Discovered Performers
+                </h2>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # Create a more attractive layout for stocks
+            # Create a more attractive layout for stocks with better alignment
             cols = st.columns(3)
             
             for i, stock in enumerate(top_stocks[:3]):
@@ -1818,14 +1899,14 @@ Generated by IntelliVest AI Custom Report Generator
                     category = "Today's Gainer" if stock['price_change_pct'] > 0 else "Today's Loser"
                     
                     st.markdown(f"""
-                        <div style="padding: 1rem; border: 2px solid {border_color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 5px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-                            <h3 style="margin: 0; color: {color}; font-size: 1.3rem; font-weight: bold; text-align: center;">{stock_symbol}</h3>
-                            <p style="font-weight: bold; margin: 6px 0; color: #ffffff; font-size: 0.9rem; text-align: center;">{stock['name']}</p>
-                            <p style="font-size: 1.5rem; font-weight: bold; color: {color}; margin: 8px 0; text-align: center;">
+                        <div style="padding: 1.5rem; border: 2px solid {border_color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 5px 0; box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: transform 0.2s;">
+                            <h3 style="margin: 0; color: {color}; font-size: 1.5rem; font-weight: bold; text-align: center;">{stock_symbol}</h3>
+                            <p style="font-weight: bold; margin: 8px 0; color: #ffffff; font-size: 1rem; text-align: center; line-height: 1.4;">{stock['name']}</p>
+                            <p style="font-size: 1.8rem; font-weight: bold; color: {color}; margin: 12px 0; text-align: center;">
                                 {direction} {stock['price_change_pct']:+.2f}%
                             </p>
-                            <p style="font-size: 1rem; margin: 6px 0; color: #ffffff; font-weight: 600; text-align: center;">{price_symbol}{stock['current_price']:,.2f}</p>
-                            <p style="font-size: 0.8rem; color: #cccccc; margin: 6px 0; font-weight: 500; text-align: center;">{category}</p>
+                            <p style="font-size: 1.2rem; margin: 8px 0; color: #ffffff; font-weight: 600; text-align: center;">{price_symbol}{stock['current_price']:,.2f}</p>
+                            <p style="font-size: 0.9rem; color: #cccccc; margin: 8px 0; font-weight: 500; text-align: center;">{category}</p>
                         </div>
                     """, unsafe_allow_html=True)
         else:
@@ -1841,9 +1922,19 @@ Generated by IntelliVest AI Custom Report Generator
         # Top performing discovered sectors
         top_sectors = market_data.get('top_performing_sectors', [])
         if top_sectors:
-            st.markdown("### 🏆 Top Performing NSE Sectoral Indices")
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        padding: 1.5rem; 
+                        border-radius: 12px; 
+                        margin: 2rem 0 1rem 0;
+                        box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                <h2 style="color: white; margin: 0; font-size: 1.5rem; font-weight: 600; text-align: center;">
+                    🏆 Top Performing NSE Sectoral Indices
+                </h2>
+            </div>
+            """, unsafe_allow_html=True)
             
-            # Create sector cards similar to stocks
+            # Create sector cards similar to stocks with better alignment
             sector_cols = st.columns(3)
             
             for i, sector in enumerate(top_sectors[:3]):
@@ -1869,19 +1960,30 @@ Generated by IntelliVest AI Custom Report Generator
                         volatility_text = f"Volatility: {volatility:.2f}%"
                     
                     st.markdown(f"""
-                        <div style="padding: 1rem; border: 2px solid {border_color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 5px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-                            <h3 style="margin: 0; color: {color}; font-size: 1.3rem; font-weight: bold; text-align: center;">{sector_name}</h3>
-                            <p style="font-size: 1.5rem; font-weight: bold; color: {color}; margin: 8px 0; text-align: center;">
+                        <div style="padding: 1.5rem; border: 2px solid {border_color}; border-radius: 15px; text-align: center; background-color: {bg_color}; margin: 5px 0; box-shadow: 0 8px 32px rgba(0,0,0,0.3); transition: transform 0.2s;">
+                            <h3 style="margin: 0; color: {color}; font-size: 1.5rem; font-weight: bold; text-align: center;">{sector_name}</h3>
+                            <p style="font-size: 1.8rem; font-weight: bold; color: {color}; margin: 12px 0; text-align: center;">
                                 {direction} {sector['price_change_pct']:+.2f}%
                             </p>
-                            <p style="font-size: 1rem; margin: 6px 0; color: #ffffff; font-weight: 600; text-align: center;">₹{sector['current_price']:,.2f}</p>
-                            <p style="font-size: 0.8rem; color: #cccccc; margin: 6px 0; font-weight: 500; text-align: center;">{volatility_text}</p>
+                            <p style="font-size: 1.2rem; margin: 8px 0; color: #ffffff; font-weight: 600; text-align: center;">₹{sector['current_price']:,.2f}</p>
+                            <p style="font-size: 0.9rem; color: #cccccc; margin: 8px 0; font-weight: 500; text-align: center;">{volatility_text}</p>
                         </div>
                     """, unsafe_allow_html=True)
             
-            # Add sector performance chart
+            # Add sector performance chart with enhanced styling
             if len(top_sectors) > 1:
-                st.markdown("#### 📊 NSE Sectoral Indices Performance Chart")
+                st.markdown("""
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                            padding: 1.5rem; 
+                            border-radius: 12px; 
+                            margin: 2rem 0 1rem 0;
+                            box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                    <h3 style="color: white; margin: 0; font-size: 1.3rem; font-weight: 600; text-align: center;">
+                        📊 NSE Sectoral Indices Performance Chart
+                    </h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
                 sector_data = []
                 for sector in top_sectors[:5]:
                     sector_data.append({
@@ -1904,23 +2006,28 @@ Generated by IntelliVest AI Custom Report Generator
                     fig.update_layout(
                         title={
                             'text': "NSE Sectoral Indices Performance Overview",
-                            'font': {'color': '#ffffff', 'size': 16}
+                            'font': {'color': '#ffffff', 'size': 18, 'weight': 'bold'},
+                            'x': 0.5,
+                            'xanchor': 'center'
                         },
                         xaxis_title="Sector",
                         yaxis_title="Performance (%)",
-                        height=400,
+                        height=450,
                         showlegend=False,
                         plot_bgcolor='#1a1a1a',  # Dark background matching cards
                         paper_bgcolor='#000000',  # Pitch black background
                         font={'color': '#ffffff'},  # White text
                         xaxis={
                             'gridcolor': '#333333',
-                            'tickfont': {'color': '#ffffff'}
+                            'tickfont': {'color': '#ffffff', 'size': 12},
+                            'title': {'font': {'color': '#ffffff', 'size': 14, 'weight': 'bold'}}
                         },
                         yaxis={
                             'gridcolor': '#333333',
-                            'tickfont': {'color': '#ffffff'}
-                        }
+                            'tickfont': {'color': '#ffffff', 'size': 12},
+                            'title': {'font': {'color': '#ffffff', 'size': 14, 'weight': 'bold'}}
+                        },
+                        margin=dict(l=60, r=60, t=80, b=60)
                     )
                 st.plotly_chart(fig, use_container_width=True)
         else:
@@ -1932,31 +2039,6 @@ Generated by IntelliVest AI Custom Report Generator
             
             Try clicking **🔄 Refresh** to retry the discovery process.
             """)
-        
-        # Add market insights if available
-        market_insights = market_data.get('market_insights', {})
-        if market_insights:
-            st.markdown("### 💡 Market Insights")
-            
-            # Display insights in a nice format
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                sentiment = market_insights.get('market_sentiment', 'neutral')
-                sentiment_emoji = {"bullish": "📈", "bearish": "📉", "neutral": "➡️"}.get(sentiment, "➡️")
-                st.metric("Market Sentiment", f"{sentiment_emoji} {sentiment.title()}")
-                
-            with col2:
-                risk_level = market_insights.get('risk_level', 'medium')
-                risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🔴"}.get(risk_level, "🟡")
-                st.metric("Risk Level", f"{risk_emoji} {risk_level.title()}")
-            
-            # Show key observations
-            key_observations = market_insights.get('key_observations', [])
-            if key_observations:
-                st.markdown("#### 🔍 Key Observations")
-                for observation in key_observations[:3]:  # Show top 3
-                    st.markdown(f"• {observation}")
         
         # Add a separator before the analysis form
         st.markdown("---")
@@ -1976,16 +2058,17 @@ Generated by IntelliVest AI Custom Report Generator
                 "Show last N analyses:",
                 [10, 25, 50, 100],
                 index=0,
-                help="Number of recent analyses to display"
+                help="Number of recent analyses to display",
+                key="history_limit_selector"
             )
         
         with col2:
-            if st.button("🔄 Refresh History"):
+            if st.button("🔄 Refresh History", key="refresh_history"):
                 # Just show a success message - the history will be refreshed on the next render
                 st.success("✅ History refreshed!")
         
         with col3:
-            if st.button("🗑️ Clear History"):
+            if st.button("🗑️ Clear History", key="clear_history"):
                 self.system.clear_history()
                 st.success("🗑️ History cleared!")
         
@@ -2000,7 +2083,8 @@ Generated by IntelliVest AI Custom Report Generator
                 search_term = st.text_input(
                     "🔍 Search by company name:",
                     placeholder="Enter company name to filter...",
-                    help="Filter analyses by company name"
+                    help="Filter analyses by company name",
+                    key="history_search_input"
                 )
                 
                 # Filter history based on search
@@ -2060,7 +2144,8 @@ Generated by IntelliVest AI Custom Report Generator
                         selected_analysis = st.selectbox(
                             "Select analysis to view details:",
                             analysis_options,
-                            help="Choose an analysis to view its complete results"
+                            help="Choose an analysis to view its complete results",
+                            key="analysis_detail_selector"
                         )
                         
                         if selected_analysis:
@@ -2291,7 +2376,7 @@ Generated by IntelliVest AI Custom Report Generator
             st.info("🔍 Dynamically discovering trending stocks and sectors...")
                         
         with col2:
-            if st.button("🔄 Refresh Market Data", help="Update dynamic market data"):
+            if st.button("🔄 Refresh Market Data", help="Update dynamic market data", key="refresh_market_data"):
                 st.session_state.market_highlights_loaded = False
                 st.session_state.market_highlights_data = None
                 st.rerun()
@@ -2480,7 +2565,8 @@ Generated by IntelliVest AI Custom Report Generator
                 selected_company = st.selectbox(
                     "Select a company to ask questions about:",
                     companies,
-                    help="Choose a company from your analysis history"
+                    help="Choose a company from your analysis history",
+                    key="combined_qa_company_selector"
                 )
                 
                 if selected_company:
@@ -2504,24 +2590,28 @@ Generated by IntelliVest AI Custom Report Generator
                             """)
                     
                     # Load company data into RAG system
-                    if st.button(f"🤖 Load {selected_company} into Q&A System", type="primary"):
+                    if st.button(f"🤖 Load {selected_company} into Q&A System", type="primary", key="combined_load_company"):
                         with st.spinner(f"Loading {selected_company} data into Q&A system..."):
                             try:
                                 success = self.load_company_into_rag(selected_company, company_analyses)
                                 
                                 if success:
-                                    st.success(f"✅ {selected_company} loaded into Q&A system!")
-                                    # Don't use st.rerun() - it causes full system reload
-                                    # Instead, use session state to track loaded company
+                                    # Ensure both session state and RAG system are synchronized
                                     st.session_state['loaded_company'] = selected_company
                                     st.session_state['company_loaded'] = True
-                                    # Also ensure RAG system current_company is set
+                                    st.session_state['show_company_selector'] = False
+                                    
+                                    # Double-check that RAG system has the correct company
                                     if self.rag_system:
-                                        self.rag_system.current_company = selected_company
-                                    st.info("💡 **Tip:** Switch to the right column to ask questions!")
-                                else:
-                                    st.error(f"❌ Failed to load {selected_company} into Q&A system.")
-                                    st.info("💡 Try running a new analysis for this company.")
+                                        success = self.rag_system.set_current_company(selected_company)
+                                        if success:
+                                            print(f"🔧 Synchronized RAG system current_company to: {selected_company}")
+                                        else:
+                                            print(f"⚠️ Warning: Could not verify company data for {selected_company}")
+                                    
+                                    st.success(f"✅ {selected_company} loaded into Q&A system!")
+                                    # Don't use st.rerun() - it causes full system reload
+                                    # The UI will update automatically through session state
                             
                             except Exception as e:
                                 st.error(f"❌ Error loading {selected_company} into Q&A system: {str(e)}")
@@ -2551,38 +2641,60 @@ Generated by IntelliVest AI Custom Report Generator
             # Show current company
             st.success(f"📊 Currently loaded: **{loaded_company}**")
             
-            # Question input with session state support
-            default_question = st.session_state.get('question_input', '')
-            question = st.text_input(
+            # Question input
+            question = st.text_area(
                 "Ask a question:",
-                value=default_question,
-                placeholder="e.g., What are the main risks? What's the growth outlook?",
-                help="Ask any question about the loaded company"
+                placeholder="e.g., What are the main risks? What's the growth outlook? How does it compare to competitors?",
+                help="Ask any question about the loaded company",
+                height=100,
+                key="qa_question_input"
             )
             
-            # Clear the session state after using it
-            if 'question_input' in st.session_state:
-                del st.session_state['question_input']
-            
-            # Suggested questions - display as text only to prevent reloading
+            # Suggested questions as example text boxes
             suggested_questions = self.rag_system.get_suggested_questions()
             if suggested_questions:
-                st.markdown("### 💡 Suggested Questions:")
-                st.info("💡 **Tip:** Copy and paste any of these questions into the input field above:")
+                st.markdown("### 💡 Example Questions You Can Ask:")
                 
-                # Display as simple text with copy-friendly format
-                for i, suggested_q in enumerate(suggested_questions[:4]):
-                    st.markdown(f"**{i+1}.** {suggested_q}")
+                # Display suggested questions as example text boxes
+                col1, col2 = st.columns(2)
                 
-                st.markdown("---")
+                with col1:
+                    for i, suggested_q in enumerate(suggested_questions[:2]):
+                        st.text_area(
+                            f"Example {i+1}:",
+                            value=suggested_q,
+                            height=80,
+                            disabled=True,
+                            key=f"qa_example_{i}"
+                        )
+                
+                with col2:
+                    for i, suggested_q in enumerate(suggested_questions[2:4]):
+                        st.text_area(
+                            f"Example {i+3}:",
+                            value=suggested_q,
+                            height=80,
+                            disabled=True,
+                            key=f"qa_example_{i+2}"
+                        )
             
             # Ask question button
-            if st.button("🚀 Ask Question", type="primary", disabled=not question.strip()):
+            if st.button("🚀 Ask Question", type="primary", disabled=not question.strip(), key="qa_ask_question"):
                 if question.strip():
                     with st.spinner("🤔 Thinking..."):
                         try:
-                            st.info(f"🔍 Debug: Asking question about {loaded_company}")
-                            st.info(f"🔍 Debug: Question: {question}")
+                            # Debug: Check current company status
+                            print(f"🔍 Debug - Session state loaded_company: {st.session_state.get('loaded_company')}")
+                            print(f"🔍 Debug - RAG system current_company: {self.rag_system.current_company if self.rag_system else 'None'}")
+                            
+                            # Ensure RAG system has the correct company
+                            if self.rag_system and st.session_state.get('loaded_company'):
+                                if self.rag_system.current_company != st.session_state.get('loaded_company'):
+                                    print(f"🔧 Fixing RAG system current_company from '{self.rag_system.current_company}' to '{st.session_state.get('loaded_company')}'")
+                                    success = self.rag_system.set_current_company(st.session_state.get('loaded_company'))
+                                    if not success:
+                                        st.error(f"❌ Failed to set current company to {st.session_state.get('loaded_company')}")
+                                        return
                             
                             # Get answer from RAG system
                             answer_result = self.rag_system.answer_question(
@@ -2591,56 +2703,118 @@ Generated by IntelliVest AI Custom Report Generator
                                 self._web_search_callback
                             )
                             
-                            st.info(f"🔍 Debug: Answer result received: {answer_result.get('source', 'unknown')}")
+                            # Display answer in full width (outside the columns)
+                            st.markdown("---")
                             
-                            # Display answer
-                            st.markdown("### 📝 Answer:")
+                            # Enhanced answer display with professional styling in full width
+                            st.markdown("""
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                        padding: 2rem; 
+                                        border-radius: 15px; 
+                                        margin: 2rem 0;
+                                        box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                                <h2 style="color: white; text-align: center; margin: 0; font-size: 2rem; font-weight: 700;">
+                                    🤖 AI Answer
+                                </h2>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
-                            # Show confidence
-                            confidence_color = "🟢" if answer_result['confidence'] > 0.7 else "🟡" if answer_result['confidence'] > 0.4 else "🔴"
-                            st.info(f"{confidence_color} **Confidence:** {answer_result['confidence']:.2f}")
-                            
-                            # Show source
+                            # Enhanced source display in full width
                             source_emoji = {
                                 'stored_report': '📊',
                                 'web_search': '🌐',
                                 'no_data': '❌',
                                 'error': '⚠️'
                             }.get(answer_result['source'], '📝')
-                            st.info(f"{source_emoji} **Source:** {answer_result['source'].replace('_', ' ').title()}")
                             
-                            # Display answer
-                            st.markdown(answer_result['answer'])
+                            st.info(f"""
+                            <div style="background: rgba(0,0,0,0.05); 
+                                        padding: 1.5rem; 
+                                        border-radius: 10px; 
+                                        border-left: 5px solid #17a2b8;
+                                        margin: 1rem 0;">
+                                <p style="margin: 0; font-weight: 600; font-size: 1.1rem;">
+                                    {source_emoji} <strong>Source:</strong> {answer_result['source'].replace('_', ' ').title()}
+                                </p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Enhanced answer display in full width
+                            st.markdown(f"""
+                            <div style="background: white; 
+                                        padding: 2rem; 
+                                        border-radius: 12px; 
+                                        border: 1px solid rgba(0,0,0,0.1);
+                                        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+                                        margin: 1rem 0;
+                                        max-width: 100%;">
+                                <div style="line-height: 1.8; color: #333; font-size: 1.1rem;">
+                                    {answer_result['answer']}
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
                             # Store question for history
                             self.rag_system.store_question(question, answer_result['answer'], answer_result['confidence'])
                             
-                            # Show chunks used if available
+                            # Enhanced sources display in full width
                             if answer_result.get('chunks_used'):
-                                with st.expander("📄 Sources Used"):
+                                with st.expander("📄 Sources Used", expanded=False):
                                     for i, chunk in enumerate(answer_result['chunks_used'][:3]):
-                                        st.markdown(f"**Source {i+1}:**")
-                                        st.markdown(f"*{chunk['content'][:200]}...*")
+                                        st.markdown(f"""
+                                        <div style="background: rgba(0,0,0,0.03); 
+                                                    padding: 1.5rem; 
+                                                    border-radius: 10px; 
+                                                    margin: 1rem 0;
+                                                    border-left: 4px solid #007bff;">
+                                            <h5 style="margin: 0; color: #007bff; font-size: 1.1rem;">Source {i+1}</h5>
+                                            <p style="margin: 0.8rem 0 0 0; color: #666; font-style: italic; line-height: 1.6;">
+                                                {chunk['content'][:300]}...
+                                            </p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                            
+                            st.markdown("---")
                             
                         except Exception as e:
                             st.error(f"❌ Error answering question: {str(e)}")
                             st.info("💡 This might be due to LLM system issues. Please try again.")
-                            # Add more debugging
                             st.error(f"🔍 Debug: Full error details: {type(e).__name__}: {e}")
             
             # Question history
             question_history = self.rag_system.get_question_history(loaded_company)
             if question_history:
-                st.markdown("### 📚 Recent Questions")
+                st.markdown("""
+                <div style="background: rgba(40, 167, 69, 0.1); 
+                            padding: 1rem; 
+                            border-radius: 8px; 
+                            margin: 1rem 0;
+                            border-left: 4px solid #28a745;">
+                    <h4 style="margin: 0; color: #28a745; font-size: 1.1rem;">📚 Recent Questions</h4>
+                </div>
+                """, unsafe_allow_html=True)
+                
                 for qa in question_history[:3]:  # Show last 3 questions
-                    with st.expander(f"Q: {qa['question'][:50]}..."):
-                        st.markdown(f"**Question:** {qa['question']}")
-                        st.markdown(f"**Answer:** {qa.get('answer', 'No answer stored')}")
-                        if qa.get('timestamp'):
-                            st.caption(f"Asked: {qa['timestamp'][:19]}")
+                    with st.expander(f"Q: {qa['question'][:50]}...", expanded=False):
+                        st.markdown(f"""
+                        <div style="background: rgba(0,0,0,0.03); 
+                                    padding: 1rem; 
+                                    border-radius: 8px; 
+                                    margin: 0.5rem 0;">
+                            <p style="margin: 0; font-weight: 600; color: #495057;">
+                                <strong>Question:</strong> {qa['question']}
+                            </p>
+                            <p style="margin: 0.5rem 0 0 0; color: #6c757d;">
+                                <strong>Answer:</strong> {qa.get('answer', 'No answer stored')}
+                            </p>
+                            <p style="margin: 0.5rem 0 0 0; color: #999; font-size: 0.8rem;">
+                                📅 Asked: {qa['timestamp'][:19] if qa.get('timestamp') else 'Unknown'}
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
             
             # Clear company data option
-            if st.button("🗑️ Clear Current Company Data", type="secondary"):
+            if st.button("🗑️ Clear Current Company Data", type="secondary", key="qa_clear_data"):
                 if loaded_company:
                     self.rag_system.clear_company_data(loaded_company)
                     # Clear session state
@@ -2648,7 +2822,28 @@ Generated by IntelliVest AI Custom Report Generator
                     st.session_state['company_loaded'] = False
                     st.success("✅ Company data cleared!")
                     # Don't use st.rerun() - it causes full system reload
-    
+                    # The UI will update automatically through session state
+        
+        # Add system stats at the bottom
+        st.markdown("---")
+        st.markdown("### 📊 Q&A System Statistics")
+        
+        if self.rag_system:
+            stats = self.rag_system.get_system_stats()
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("📝 Reports", stats.get('total_reports', 0))
+            
+            with col2:
+                st.metric("💬 Questions", stats.get('total_questions', 0))
+            
+            with col3:
+                st.metric("🏢 Companies", stats.get('unique_companies', 0))
+            
+            with col4:
+                st.metric("📊 Chunks", stats.get('total_chunks', 0))
+
     def validate_analysis_content(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and analyze the content structure of an analysis"""
         content = analysis.get('content', {})
@@ -2698,14 +2893,24 @@ Generated by IntelliVest AI Custom Report Generator
         """Load company analyses into RAG system"""
         try:
             if not self.rag_system:
+                print("❌ RAG system not available")
                 return False
+            
+            print(f"📝 Loading {len(analyses)} analyses for {company_name} into RAG system...")
+            
+            # Clear any previous company data to prevent contamination
+            if self.rag_system.current_company and self.rag_system.current_company != company_name:
+                print(f"🗑️ Clearing previous company data for {self.rag_system.current_company}")
+                self.rag_system.clear_company_data(self.rag_system.current_company)
             
             # Prepare comprehensive report content from all analyses
             report_content = ""
             
-            for analysis in analyses:
+            for i, analysis in enumerate(analyses):
                 analysis_type = analysis.get('analysis_type', 'unknown')
-                content = analysis.get('content', {})  # Fixed: use 'content' instead of 'full_content'
+                content = analysis.get('content', {})
+                
+                print(f"📋 Processing {analysis_type} analysis {i+1}/{len(analyses)}")
                 
                 # Add analysis type header
                 report_content += f"\n\n=== {analysis_type.upper()} ANALYSIS ===\n"
@@ -2738,9 +2943,19 @@ Generated by IntelliVest AI Custom Report Generator
                         if key not in ['full_result', 'research', 'sentiment', 'valuation', 'critique', 'original_thesis', 'final_thesis']:
                             if isinstance(value, str) and value.strip():
                                 report_content += f"{key.upper()}:\n{value}\n\n"
+                            elif isinstance(value, dict):
+                                # Handle nested dictionaries
+                                report_content += f"{key.upper()}:\n"
+                                for sub_key, sub_value in value.items():
+                                    if isinstance(sub_value, str) and sub_value.strip():
+                                        report_content += f"{sub_key}: {sub_value}\n"
+                                report_content += "\n"
                 else:
                     # If content is a string
-                    report_content += f"CONTENT:\n{str(content)}\n\n"
+                    if isinstance(content, str) and content.strip():
+                        report_content += f"CONTENT:\n{content}\n\n"
+                    else:
+                        print(f"⚠️ Skipping analysis {i+1} - no valid content found")
             
             # Validate that we have meaningful content
             if not report_content.strip():
@@ -2752,10 +2967,11 @@ Generated by IntelliVest AI Custom Report Generator
             # Prepare metadata
             report_metadata = {
                 'analysis_count': len(analyses),
-                'analysis_types': ', '.join([a.get('analysis_type', 'unknown') for a in analyses]),  # Convert list to string
+                'analysis_types': ', '.join([a.get('analysis_type', 'unknown') for a in analyses]),
                 'timestamp': datetime.now().isoformat(),
                 'source': 'historical_analysis',
-                'company_name': company_name
+                'company_name': company_name,
+                'status': 'success'
             }
             
             # Store in RAG system
@@ -2763,13 +2979,21 @@ Generated by IntelliVest AI Custom Report Generator
             
             if report_id:
                 print(f"✅ Successfully loaded {company_name} with {len(analyses)} analyses into RAG system")
+                
+                # Verify company isolation
+                if not self.rag_system.verify_company_isolation(company_name):
+                    print(f"⚠️ Warning: Company isolation verification failed for {company_name}")
+                
+                self.rag_system.current_company = company_name  # Set current company
                 return True
             else:
-                print(f"❌ Failed to store {company_name} in RAG system")
+                print(f"❌ Failed to load {company_name} into RAG system")
                 return False
                 
         except Exception as e:
             print(f"❌ Error loading company into RAG: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def run(self):
@@ -2781,7 +3005,7 @@ Generated by IntelliVest AI Custom Report Generator
         config = self.render_sidebar()
         
         # Main content area
-        tab1, tab2, tab3, tab4 = st.tabs(["🚀 Analysis", "📈 Markets", "📚 History", "🔧 Status"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Analysis", "📈 Markets", "📚 History", "🤖 Q&A", "🔧 Status"])
         
         with tab1:
             # Render market discovery content at the top of analysis tab
@@ -2813,7 +3037,11 @@ Generated by IntelliVest AI Custom Report Generator
                             self.analysis_history.append(result)
                         
                         # Store analysis in RAG system for Q&A
-                        self.store_analysis_in_rag(result)
+                        rag_success = self.store_analysis_in_rag(result)
+                        if rag_success:
+                            print(f"✅ Analysis for {company_name} successfully stored in RAG system")
+                        else:
+                            print(f"⚠️ Failed to store analysis for {company_name} in RAG system")
                         
                         # Update metrics after analysis
                         self.update_metrics_after_analysis(result)
@@ -2834,29 +3062,417 @@ Generated by IntelliVest AI Custom Report Generator
                         
                         # Show error in a clean way
                         st.error(f"❌ Analysis failed: {str(e)}")
-                        
-                        # Don't show the error again in results
-                        result = None
-                    
-                    finally:
-                        # Clean up
-                        if 'loop' in locals():
-                            loop.close()
-                else:
-                    st.warning("⚠️ Please enter a company name")
+                        st.info("💡 Please check your input and try again.")
         
         with tab2:
+            # Markets tab
             self.render_market_overview()
         
         with tab3:
+            # History tab
             self.render_history()
         
         with tab4:
+            # Q&A tab
+            self.render_qa_tab()
+        
+        with tab5:
+            # Status tab
             self.render_system_status()
             
             # Add About section
             st.markdown("---")
             self.render_about()
+    
+    def render_qa_tab(self):
+        """Render the dedicated Q&A tab with professional styling"""
+        
+        # Professional header with gradient styling
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 2rem; 
+                    border-radius: 15px; 
+                    margin-bottom: 2rem;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+            <h1 style="color: white; text-align: center; margin: 0; font-size: 2.5rem; font-weight: 700;">
+                🤖 AI-Powered Investment Q&A
+            </h1>
+            <p style="color: white; text-align: center; margin: 0.5rem 0 0 0; font-size: 1.1rem; opacity: 0.9;">
+                Ask intelligent questions about your investment analyses
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if not self.rag_system:
+            st.error("⚠️ Q&A system is not available. Please check the system status.")
+            return
+        
+        # Sequential layout - no columns, everything flows in order
+        
+        # 1. Company Loading Section
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                    padding: 1.5rem; 
+                    border-radius: 12px; 
+                    margin-bottom: 1.5rem;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h3 style="color: white; margin: 0; font-size: 1.3rem; font-weight: 600;">
+                🏢 Load Company Data
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Check if we have a current company from recent analysis
+        current_company = self.rag_system.current_company if self.rag_system else None
+        
+        if current_company:
+            st.markdown(f"""
+            <div style="background: rgba(40, 167, 69, 0.1); 
+                        padding: 1rem; 
+                        border-radius: 8px; 
+                        border-left: 4px solid #28a745;">
+                <h4 style="margin: 0; color: #28a745;">📊 Current Company</h4>
+                <p style="margin: 0.5rem 0 0 0; font-weight: 600; font-size: 1.1rem;">{current_company}</p>
+                <p style="margin: 0.5rem 0 0 0; color: #666; font-size: 0.9rem;">💡 You can ask questions about this company directly!</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Option to load a different company
+            if st.button("🔄 Load Different Company", key="qa_load_different", use_container_width=True):
+                st.session_state['show_company_selector'] = True
+        else:
+            st.info("📝 No company currently loaded. Select a company from your analysis history.")
+            st.session_state['show_company_selector'] = True
+        
+        # Company selector with enhanced styling
+        if st.session_state.get('show_company_selector', False):
+            try:
+                history = self.system.get_analysis_history(limit=1000)
+                if not history:
+                    st.warning("📝 No analysis history available. Run your first analysis to use this feature.")
+                    return
+                
+                # Get unique companies
+                companies = list(set([h['company_name'] for h in history]))
+                companies.sort()
+                
+                # Company selection with better styling
+                selected_company = st.selectbox(
+                    "Select a company to ask questions about:",
+                    companies,
+                    help="Choose a company from your analysis history",
+                    key="qa_company_selector"
+                )
+                
+                if selected_company:
+                    # Get analyses for this company
+                    company_analyses = self.system.get_analysis_by_company(selected_company)
+                    
+                    if not company_analyses:
+                        st.error(f"⚠️ No analyses found for {selected_company}")
+                        return
+                    
+                    st.success(f"📊 Found {len(company_analyses)} analyses for {selected_company}")
+                    
+                    # Enhanced analysis summary with better styling
+                    with st.expander(f"📋 Analysis Summary for {selected_company}", expanded=False):
+                        for analysis in company_analyses:
+                            st.markdown(f"""
+                            <div style="background: rgba(0,0,0,0.05); 
+                                        padding: 1rem; 
+                                        border-radius: 8px; 
+                                        margin: 0.5rem 0;
+                                        border-left: 3px solid #007bff;">
+                                <h5 style="margin: 0; color: #007bff;">{analysis['analysis_type'].title()} Analysis</h5>
+                                <p style="margin: 0.3rem 0; color: #666;">📅 {analysis['timestamp'][:10]}</p>
+                                <p style="margin: 0.3rem 0;">✅ Status: {analysis['status']}</p>
+                                <p style="margin: 0.3rem 0;">🎯 Confidence: {analysis['confidence_score']:.2f}</p>
+                                <p style="margin: 0.3rem 0;">⏱️ Execution Time: {analysis['execution_time']:.2f}s</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    # Enhanced load button with better styling
+                    if st.button(f"🤖 Load {selected_company} into Q&A System", type="primary", key="qa_load_company", use_container_width=True):
+                        with st.spinner(f"Loading {selected_company} data into Q&A system..."):
+                            try:
+                                success = self.load_company_into_rag(selected_company, company_analyses)
+                                
+                                if success:
+                                    # Ensure both session state and RAG system are synchronized
+                                    st.session_state['loaded_company'] = selected_company
+                                    st.session_state['company_loaded'] = True
+                                    st.session_state['show_company_selector'] = False
+                                    
+                                    # Double-check that RAG system has the correct company
+                                    if self.rag_system:
+                                        success = self.rag_system.set_current_company(selected_company)
+                                        if success:
+                                            print(f"🔧 Synchronized RAG system current_company to: {selected_company}")
+                                        else:
+                                            print(f"⚠️ Warning: Could not verify company data for {selected_company}")
+                                    
+                                    st.success(f"✅ {selected_company} loaded into Q&A system!")
+                                
+                                else:
+                                    st.error(f"❌ Failed to load {selected_company} into Q&A system.")
+                                    st.info("💡 Try running a new analysis for this company.")
+                            
+                            except Exception as e:
+                                st.error(f"❌ Error loading {selected_company} into Q&A system: {str(e)}")
+                                st.info("💡 This might be due to empty analysis content or system issues.")
+            
+            except Exception as e:
+                st.error(f"❌ Error loading historical data: {e}")
+                st.info("💡 Please try refreshing the page or check if the system is properly initialized.")
+        
+        # 2. Question Asking Section
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                    padding: 1.5rem; 
+                    border-radius: 12px; 
+                    margin: 2rem 0 1.5rem 0;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h3 style="color: white; margin: 0; font-size: 1.3rem; font-weight: 600;">
+                🤔 Ask Questions
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Check if a company is loaded using session state
+        company_loaded = st.session_state.get('company_loaded', False)
+        loaded_company = st.session_state.get('loaded_company', None)
+        current_company = self.rag_system.current_company if self.rag_system else None
+        
+        active_company = loaded_company or current_company
+        
+        if not active_company:
+            st.info("📝 No company loaded. Please load a company first.")
+            return
+        
+        # Enhanced current company display
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 1rem; 
+                    border-radius: 8px; 
+                    margin-bottom: 1rem;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h4 style="color: white; margin: 0; font-size: 1.1rem; font-weight: 600;">
+                📊 Currently Loaded
+            </h4>
+            <p style="color: white; margin: 0.5rem 0 0 0; font-weight: 700; font-size: 1.2rem;">
+                {active_company}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Enhanced question input with better styling
+        question = st.text_area(
+            "Ask a question:",
+            placeholder="e.g., What are the main risks? What's the growth outlook? How does it compare to competitors?",
+            help="Ask any question about the loaded company",
+            height=120,
+            key="qa_question_input"
+        )
+        
+        # Enhanced suggested questions with better styling
+        suggested_questions = self.rag_system.get_suggested_questions()
+        if suggested_questions:
+            st.markdown("""
+            <div style="background: rgba(255, 193, 7, 0.1); 
+                        padding: 1rem; 
+                        border-radius: 8px; 
+                        margin: 1rem 0;
+                        border-left: 4px solid #ffc107;">
+                <h4 style="margin: 0; color: #856404; font-size: 1.1rem;">💡 Example Questions You Can Ask</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Display suggested questions in a more attractive format - full width
+            for i, suggested_q in enumerate(suggested_questions[:4]):
+                st.markdown(f"""
+                <div style="background: rgba(0,0,0,0.03); 
+                            padding: 1rem; 
+                            border-radius: 8px; 
+                            margin: 0.5rem 0;
+                            border: 1px solid rgba(0,0,0,0.1);">
+                    <p style="margin: 0; font-weight: 600; color: #495057;">Example {i+1}:</p>
+                    <p style="margin: 0.5rem 0 0 0; color: #6c757d; font-size: 0.9rem;">{suggested_q}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Enhanced ask question button
+        if st.button("🚀 Ask Question", type="primary", disabled=not question.strip(), key="qa_ask_question", use_container_width=True):
+            if question.strip():
+                with st.spinner("🤔 Thinking..."):
+                    try:
+                        # Debug: Check current company status
+                        print(f"🔍 Debug - Session state loaded_company: {st.session_state.get('loaded_company')}")
+                        print(f"🔍 Debug - RAG system current_company: {self.rag_system.current_company if self.rag_system else 'None'}")
+                        
+                        # Ensure RAG system has the correct company
+                        if self.rag_system and st.session_state.get('loaded_company'):
+                            if self.rag_system.current_company != st.session_state.get('loaded_company'):
+                                print(f"🔧 Fixing RAG system current_company from '{self.rag_system.current_company}' to '{st.session_state.get('loaded_company')}'")
+                                success = self.rag_system.set_current_company(st.session_state.get('loaded_company'))
+                                if not success:
+                                    st.error(f"❌ Failed to set current company to {st.session_state.get('loaded_company')}")
+                                    return
+                        
+                        # Get answer from RAG system
+                        answer_result = self.rag_system.answer_question(
+                            question, 
+                            self._llm_callback, 
+                            self._web_search_callback
+                        )
+                        
+                        # Display answer in full width (outside the columns)
+                        st.markdown("---")
+                        
+                        # Enhanced answer display with professional styling in full width
+                        st.markdown("""
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                    padding: 2rem; 
+                                    border-radius: 15px; 
+                                    margin: 2rem 0;
+                                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+                            <h2 style="color: white; text-align: center; margin: 0; font-size: 2rem; font-weight: 700;">
+                                🤖 AI Answer
+                            </h2>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Enhanced source display in full width - Fixed the st.info() issue
+                        source_emoji = {
+                            'stored_report': '📊',
+                            'web_search': '🌐',
+                            'no_data': '❌',
+                            'error': '⚠️'
+                        }.get(answer_result['source'], '📝')
+                        
+                        st.markdown(f"""
+                        <div style="background: rgba(0,0,0,0.05); 
+                                    padding: 1.5rem; 
+                                    border-radius: 10px; 
+                                    border-left: 5px solid #17a2b8;
+                                    margin: 1rem 0;">
+                            <p style="margin: 0; font-weight: 600; font-size: 1.1rem;">
+                                {source_emoji} <strong>Source:</strong> {answer_result['source'].replace('_', ' ').title()}
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Enhanced answer display in full width
+                        st.markdown(f"""
+                        <div style="background: white; 
+                                    padding: 2rem; 
+                                    border-radius: 12px; 
+                                    border: 1px solid rgba(0,0,0,0.1);
+                                    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+                                    margin: 1rem 0;
+                                    max-width: 100%;">
+                            <div style="line-height: 1.8; color: #333; font-size: 1.1rem;">
+                                {answer_result['answer']}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Store question for history
+                        self.rag_system.store_question(question, answer_result['answer'], answer_result['confidence'])
+                        
+                        # Enhanced sources display in full width
+                        if answer_result.get('chunks_used'):
+                            with st.expander("📄 Sources Used", expanded=False):
+                                for i, chunk in enumerate(answer_result['chunks_used'][:3]):
+                                    st.markdown(f"""
+                                    <div style="background: rgba(0,0,0,0.03); 
+                                                padding: 1.5rem; 
+                                                border-radius: 10px; 
+                                                margin: 1rem 0;
+                                                border-left: 4px solid #007bff;">
+                                        <h5 style="margin: 0; color: #007bff; font-size: 1.1rem;">Source {i+1}</h5>
+                                        <p style="margin: 0.8rem 0 0 0; color: #666; font-style: italic; line-height: 1.6;">
+                                            {chunk['content'][:300]}...
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                        
+                        st.markdown("---")
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error answering question: {str(e)}")
+                        st.info("💡 This might be due to LLM system issues. Please try again.")
+                        st.error(f"🔍 Debug: Full error details: {type(e).__name__}: {e}")
+        
+        # 3. Question History Section
+        question_history = self.rag_system.get_question_history(loaded_company)
+        if question_history:
+            st.markdown("""
+            <div style="background: rgba(40, 167, 69, 0.1); 
+                        padding: 1rem; 
+                        border-radius: 8px; 
+                        margin: 2rem 0 1rem 0;
+                        border-left: 4px solid #28a745;">
+                <h4 style="margin: 0; color: #28a745; font-size: 1.1rem;">📚 Recent Questions</h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            for qa in question_history[:3]:  # Show last 3 questions
+                with st.expander(f"Q: {qa['question'][:50]}...", expanded=False):
+                    st.markdown(f"""
+                    <div style="background: rgba(0,0,0,0.03); 
+                                padding: 1rem; 
+                                border-radius: 8px; 
+                                margin: 0.5rem 0;">
+                        <p style="margin: 0; font-weight: 600; color: #495057;">
+                            <strong>Question:</strong> {qa['question']}
+                        </p>
+                        <p style="margin: 0.5rem 0 0 0; color: #6c757d;">
+                            <strong>Answer:</strong> {qa.get('answer', 'No answer stored')}
+                        </p>
+                        <p style="margin: 0.5rem 0 0 0; color: #999; font-size: 0.8rem;">
+                            📅 Asked: {qa['timestamp'][:19] if qa.get('timestamp') else 'Unknown'}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        # 4. Clear Data Section
+        if st.button("🗑️ Clear Current Company Data", type="secondary", key="qa_clear_data", use_container_width=True):
+            if loaded_company:
+                self.rag_system.clear_company_data(loaded_company)
+                # Clear session state
+                st.session_state['loaded_company'] = None
+                st.session_state['company_loaded'] = False
+                st.success("✅ Company data cleared!")
+        
+        # 5. System Statistics Section
+        st.markdown("---")
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 1.5rem; 
+                    border-radius: 12px; 
+                    margin-top: 2rem;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+            <h3 style="color: white; margin: 0; font-size: 1.3rem; font-weight: 600; text-align: center;">
+                📊 Q&A System Statistics
+            </h3>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if self.rag_system:
+            stats = self.rag_system.get_system_stats()
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("📝 Reports", stats.get('total_reports', 0))
+            
+            with col2:
+                st.metric("💬 Questions", stats.get('total_questions', 0))
+            
+            with col3:
+                st.metric("🏢 Companies", stats.get('unique_companies', 0))
+            
+            with col4:
+                st.metric("📊 Chunks", stats.get('total_chunks', 0))
     
     def render_about(self):
         """Render about section"""

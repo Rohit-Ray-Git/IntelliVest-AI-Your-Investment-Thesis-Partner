@@ -28,7 +28,59 @@ class RAGSystem:
     """Advanced RAG system for investment analysis Q&A"""
     
     def __init__(self):
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        # Initialize embedding model with proper device handling
+        try:
+            import torch
+            
+            # Check if CUDA is available and working
+            if torch.cuda.is_available():
+                try:
+                    # Try to use CUDA with proper meta tensor handling
+                    print("🚀 Attempting CUDA initialization...")
+                    self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                    
+                    # Handle meta tensor issue by using to_empty() properly
+                    try:
+                        # First try to_empty() method
+                        if hasattr(self.embedding_model, 'to_empty'):
+                            self.embedding_model = self.embedding_model.to_empty(device='cuda')
+                            print("✅ CUDA initialization successful with to_empty()")
+                        else:
+                            # Fallback to regular to() method
+                            self.embedding_model = self.embedding_model.to('cuda')
+                            print("✅ CUDA initialization successful with to()")
+                    except Exception as cuda_error:
+                        print(f"⚠️ CUDA device transfer failed: {cuda_error}")
+                        # Fallback to CPU
+                        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+                        print("💻 Fallback to CPU due to CUDA device transfer issues")
+                        
+                except Exception as e:
+                    print(f"⚠️ CUDA initialization failed, falling back to CPU: {e}")
+                    self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+                    print("💻 Using CPU for embeddings")
+            else:
+                # Use CPU
+                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+                print("💻 Using CPU for embeddings")
+                
+        except Exception as e:
+            print(f"❌ Error initializing SentenceTransformer: {e}")
+            print("🔄 Trying alternative initialization...")
+            try:
+                # Fallback initialization with explicit CPU
+                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+                print("✅ Embedding model initialized with fallback method")
+            except Exception as e2:
+                print(f"❌ Critical error initializing embeddings: {e2}")
+                # Last resort: try without device specification
+                try:
+                    self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                    print("✅ Embedding model initialized with minimal configuration")
+                except Exception as e3:
+                    print(f"❌ Failed to initialize embeddings: {e3}")
+                    raise Exception(f"Failed to initialize RAG system: {e3}")
+        
         self.chunk_size = 1000
         self.chunk_overlap = 200
         self.max_results = 5
@@ -246,6 +298,7 @@ class RAGSystem:
             where_clause = {}
             if company_name:
                 where_clause["company_name"] = company_name
+                print(f"🔍 Filtering by company: {company_name}")
             
             print(f"🔍 Search parameters: where_clause={where_clause}")
             
@@ -258,7 +311,7 @@ class RAGSystem:
             
             print(f"🔍 Raw search results: {len(results.get('documents', [[]])[0]) if results.get('documents') else 0} documents")
             
-            # Format results
+            # Format results and add debugging
             formatted_results = []
             if results['documents'] and results['documents'][0]:
                 for i, (doc, metadata, distance) in enumerate(zip(
@@ -266,6 +319,10 @@ class RAGSystem:
                     results['metadatas'][0],
                     results['distances'][0]
                 )):
+                    # Debug: Print the actual company name from metadata
+                    actual_company = metadata.get('company_name', 'UNKNOWN')
+                    print(f"🔍 Chunk {i+1}: Company={actual_company}, Similarity={1-distance:.3f}")
+                    
                     formatted_results.append({
                         'content': doc,
                         'metadata': metadata,
@@ -517,3 +574,64 @@ Answer:"""
         except Exception as e:
             print(f"❌ Error getting system stats: {e}")
             return {'error': str(e)} 
+
+    def verify_company_isolation(self, company_name: str) -> bool:
+        """Verify that the current company data is properly isolated"""
+        try:
+            if not company_name:
+                return False
+            
+            # Get all documents for this company
+            results = self.reports_collection.get(
+                where={"company_name": company_name},
+                limit=100
+            )
+            
+            if not results['documents']:
+                print(f"⚠️ No documents found for {company_name}")
+                return False
+            
+            # Check if all documents belong to the same company
+            all_companies = set()
+            for metadata in results['metadatas']:
+                all_companies.add(metadata.get('company_name', 'UNKNOWN'))
+            
+            if len(all_companies) > 1:
+                print(f"❌ Company contamination detected! Found companies: {all_companies}")
+                return False
+            elif company_name not in all_companies:
+                print(f"❌ Company mismatch! Expected {company_name}, found {all_companies}")
+                return False
+            else:
+                print(f"✅ Company isolation verified for {company_name}")
+                return True
+                
+        except Exception as e:
+            print(f"❌ Error verifying company isolation: {e}")
+            return False 
+
+    def set_current_company(self, company_name: str) -> bool:
+        """Set the current company and verify it exists in the database"""
+        try:
+            if not company_name:
+                print("⚠️ No company name provided")
+                return False
+            
+            # Check if company exists in database
+            results = self.reports_collection.get(
+                where={"company_name": company_name},
+                limit=1
+            )
+            
+            if not results['documents']:
+                print(f"⚠️ No data found for company: {company_name}")
+                return False
+            
+            # Set current company
+            self.current_company = company_name
+            print(f"✅ Current company set to: {company_name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error setting current company: {e}")
+            return False 

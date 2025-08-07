@@ -30,14 +30,14 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 class ModelProvider(Enum):
     """Available model providers"""
-    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"  # Correct model name for Google API
     GROQ_DEEPSEEK_R1 = "deepseek-r1-distill-llama-70b"
     GROQ_LLAMA_3_3_70B = "llama-3.3-70b-versatile"
-    GROQ_LLAMA_70B = "llama3.1-70b-8192"
+    GROQ_LLAMA_70B = "llama3-70b-8192"
     GROQ_LLAMA_8B = "llama3.1-8b-8192"
     GROQ_MIXTRAL = "mixtral-8x7b-32768"
-    GEMINI_2_0_FLASH = "gemini-2.0-flash"
-    GEMINI_1_5_FLASH = "gemini-1.5-flash"
+    GEMINI_2_0_FLASH = "gemini-2.0-flash"  # Correct model name for Google API
+    GEMINI_1_5_FLASH = "gemini-1.5-flash"  # This one should work
 
 def _format_model_for_litellm(model_name: str) -> tuple[str, str]:
     """
@@ -284,28 +284,25 @@ class AdvancedFallbackSystem:
     def get_llm_instance(self, provider: ModelProvider) -> Optional[ChatOpenAI]:
         """Get LLM instance for a specific provider"""
         try:
-            # Format model name for LiteLLM
-            formatted_model, model_provider = _format_model_for_litellm(provider.value)
-            
-            if model_provider == "groq":
+            if "gemini" in provider.value:
+                # Use Google Generative AI directly
+                return ChatGoogleGenerativeAI(
+                    model=provider.value,  # Use the raw model name
+                    google_api_key=os.getenv("GOOGLE_API_KEY"),
+                    temperature=self.models[provider].temperature,
+                    max_output_tokens=self.models[provider].max_tokens
+                )
+            elif "llama" in provider.value or "deepseek" in provider.value or "mixtral" in provider.value:
+                # Use Groq with OpenAI-compatible endpoint
                 return ChatOpenAI(
-                    model=formatted_model,
+                    model=f"groq/{provider.value}",
                     api_key=os.getenv("GROQ_API_KEY"),
                     base_url="https://api.groq.com/openai/v1",  # Groq's OpenAI-compatible endpoint
                     temperature=self.models[provider].temperature,
                     max_tokens=self.models[provider].max_tokens
                 )
-            elif model_provider == "google":
-                # Remove the "google/" prefix for Google Generative AI
-                model_name = formatted_model.replace("google/", "")
-                return ChatGoogleGenerativeAI(
-                    model=model_name,
-                    google_api_key=os.getenv("GOOGLE_API_KEY"),
-                    temperature=self.models[provider].temperature,
-                    max_output_tokens=self.models[provider].max_tokens
-                )
             else:
-                print(f"❌ Unknown provider: {model_provider}")
+                print(f"❌ Unknown provider for model: {provider.value}")
                 return None
                 
         except Exception as e:
