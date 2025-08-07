@@ -28,7 +28,7 @@ class RAGSystem:
     """Advanced RAG system for investment analysis Q&A"""
     
     def __init__(self):
-        # Initialize embedding model with proper device handling
+        # Initialize embedding model with robust device handling
         try:
             import torch
             
@@ -37,11 +37,13 @@ class RAGSystem:
                 try:
                     # Try to use CUDA with proper meta tensor handling
                     print("🚀 Attempting CUDA initialization...")
+                    
+                    # First, try to initialize without device specification
                     self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
                     
-                    # Handle meta tensor issue by using to_empty() properly
+                    # Then try to move to CUDA with proper meta tensor handling
                     try:
-                        # First try to_empty() method
+                        # Try to_empty() method first
                         if hasattr(self.embedding_model, 'to_empty'):
                             self.embedding_model = self.embedding_model.to_empty(device='cuda')
                             print("✅ CUDA initialization successful with to_empty()")
@@ -51,9 +53,8 @@ class RAGSystem:
                             print("✅ CUDA initialization successful with to()")
                     except Exception as cuda_error:
                         print(f"⚠️ CUDA device transfer failed: {cuda_error}")
-                        # Fallback to CPU
-                        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
-                        print("💻 Fallback to CPU due to CUDA device transfer issues")
+                        # Keep the model on CPU if CUDA transfer fails
+                        print("💻 Keeping model on CPU due to CUDA device transfer issues")
                         
                 except Exception as e:
                     print(f"⚠️ CUDA initialization failed, falling back to CPU: {e}")
