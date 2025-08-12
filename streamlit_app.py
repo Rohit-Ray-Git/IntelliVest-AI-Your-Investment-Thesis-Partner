@@ -72,8 +72,8 @@ if __name__ == "__main__":
     else:
         # Being run by Streamlit - continue with the app
         pass
-
-# Streamlit app code starts here
+    
+# Main UI
 import streamlit as st
 import asyncio
 import time
