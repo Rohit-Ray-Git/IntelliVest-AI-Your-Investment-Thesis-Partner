@@ -462,9 +462,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 *Built with ❤️ for the investment community*
 
-[![GitHub stars](https://img.shields.io/github/stars/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner?style=social)](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner?style=social)](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/network)
-[![GitHub issues](https://img.shields.io/github/issues/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner)](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/issues)
-[![GitHub license](https://img.shields.io/github/license/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner)](https://github.com/Rohit-Ray-Git/IntelliVest-AI-Your-Investment-Thesis-Partner/blob/main/LICENSE)
-
 </div>
